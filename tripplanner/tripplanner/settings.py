@@ -84,8 +84,27 @@ WSGI_APPLICATION = 'tripplanner.wsgi.application'
 # Database configuration
 is_vercel = os.getenv("VERCEL") == "1" or os.getenv("VERCEL_ENV") is not None
 selected_db = os.getenv("DJANGO_DB", "").strip().lower()
+cloud_db_url = (
+    os.getenv("POSTGRES_URL")
+    or os.getenv("POSTGRES_URL_NON_POOLING")
+    or os.getenv("STORAGE_URL")
+    or os.getenv("DATABASE_URL")
+)
 
-if is_vercel:
+if cloud_db_url:
+    try:
+        import dj_database_url
+        DATABASES = {
+            "default": dj_database_url.parse(cloud_db_url, conn_max_age=60)
+        }
+    except Exception:
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.sqlite3",
+                "NAME": BASE_DIR / "db.sqlite3",
+            }
+        }
+elif is_vercel:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",

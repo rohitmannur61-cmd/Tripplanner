@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Trip Planner — Discover Destinations</title>
+  <meta name="description" content="AI-powered travel recommendations. Discover your next dream destination with intelligent suggestions." />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --ink: #121417;
+      --muted: #58606a;
+      --accent: #ff6b4a;
+      --accent-2: #1a6f7a;
+      --sun: #f4c15d;
+      --card: rgba(255,255,255,0.92);
+      --glass: rgba(255,255,255,0.62);
+    }
+
+    *{ box-sizing: border-box; }
+
+    body{
+      font-family: "Plus Jakarta Sans", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 600px at 75% -10%, rgba(255, 224, 204, 0.75), transparent),
+        radial-gradient(900px 500px at -10% 10%, rgba(196, 229, 242, 0.55), transparent),
+        linear-gradient(180deg, #f8f5ef 0%, #eef3f7 55%, #f8f5ef 100%);
+      min-height: 100vh;
+    }
+
+    /* ── Navbar ── */
+    .nav-wrap{
+      position: sticky; top: 0; z-index: 10;
+      backdrop-filter: blur(10px);
+      background: rgba(255,255,255,0.75);
+      border-bottom: 1px solid rgba(18,20,23,0.08);
+    }
+    .brand{
+      font-family: "Fraunces", serif;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    /* ── Hero ── */
+    .hero-banner{
+      min-height: 70vh;
+      display: grid;
+      place-items: center;
+      padding: 80px 0 90px;
+      color: white;
+      position: relative;
+      background-color: #0f4c5c;
+      background-image:
+        linear-gradient(120deg, rgba(18,20,23,0.78), rgba(18,20,23,0.25)),
+        url('https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=2070&auto=format&fit=crop');
+      background-size: cover;
+      background-position: center;
+      overflow: hidden;
+    }
+    .hero-banner::after{
+      content: "";
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(500px 200px at 15% 20%, rgba(255, 193, 94, 0.3), transparent),
+        radial-gradient(600px 200px at 70% 0%, rgba(26, 111, 122, 0.3), transparent);
+      mix-blend-mode: screen;
+      pointer-events: none;
+    }
+    .hero-content{
+      text-align: center;
+      position: relative; z-index: 2;
+      max-width: 760px;
+      padding: 0 16px;
+    }
+    .pill{
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 7px 14px; border-radius: 999px;
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.25);
+      font-weight: 600; font-size: 0.9rem;
+    }
+    .hero-title{
+      font-family: "Fraunces", serif;
+      font-weight: 700;
+      font-size: clamp(2.4rem, 3.2vw + 1rem, 4.2rem);
+      letter-spacing: -1px;
+      margin: 16px 0 10px;
+    }
+    .hero-sub{
+      color: rgba(255,255,255,0.85);
+      font-size: clamp(1rem, 1.2vw + 0.7rem, 1.35rem);
+      margin-bottom: 28px;
+    }
+
+    /* ── Search ── */
+    .search-box{
+      background: rgba(255,255,255,0.92);
+      border-radius: 999px;
+      padding: 8px;
+      box-shadow: 0 16px 40px rgba(18,20,23,0.28);
+      border: 1px solid rgba(255,255,255,0.6);
+      backdrop-filter: blur(6px);
+    }
+    .search-box .form-control{
+      border: none; background: transparent;
+      padding: 14px 18px; font-weight: 500;
+    }
+    .search-box .form-control:focus{ box-shadow: none; }
+
+    /* ── Buttons ── */
+    .btn-accent{
+      background: linear-gradient(135deg, var(--accent), #ff8a6b);
+      border: none; color: white;
+      font-weight: 700; border-radius: 999px;
+      padding: 12px 26px;
+      box-shadow: 0 12px 28px rgba(255, 107, 74, 0.35);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .btn-accent:hover{
+      transform: translateY(-2px);
+      box-shadow: 0 16px 34px rgba(255, 107, 74, 0.45);
+      color: white;
+    }
+
+    /* ── Section ── */
+    .section{ padding: 60px 0 80px; }
+    .section-header{
+      display: flex; align-items: center;
+      justify-content: space-between;
+      gap: 16px; margin-bottom: 28px;
+    }
+    .section-title{
+      font-family: "Fraunces", serif;
+      font-weight: 700;
+      font-size: clamp(1.8rem, 1.4vw + 1rem, 2.6rem);
+      margin: 0;
+    }
+    .section-sub{
+      color: var(--muted);
+      margin: 6px 0 0;
+    }
+
+    /* ── Place Cards ── */
+    .place-card{
+      border: 1px solid rgba(18,20,23,0.08);
+      border-radius: 24px;
+      background: var(--card);
+      box-shadow: 0 18px 35px rgba(18,20,23,0.1);
+      overflow: hidden;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      height: 100%;
+    }
+    .place-card:hover{
+      transform: translateY(-6px);
+      box-shadow: 0 24px 45px rgba(18,20,23,0.16);
+    }
+    .place-card .card-img-wrap{
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, #0f4c5c, #1a6f7a);
+    }
+    .place-card .card-img-wrap img{
+      width: 100%; height: 100%;
+      object-fit: cover;
+      transition: transform 0.5s ease;
+    }
+    .place-card:hover .card-img-wrap img{ transform: scale(1.06); }
+
+    .card-title{ font-weight: 700; margin-bottom: 6px; }
+    .card-text{ color: var(--muted); font-size: 0.95rem; }
+
+    .rating{
+      background: rgba(255, 193, 94, 0.2);
+      color: #8f5600; font-weight: 700;
+      padding: 4px 10px; border-radius: 999px;
+    }
+    .budget{ color: var(--accent-2); font-weight: 700; }
+
+    /* ── Recommendation Cards ── */
+    .rec-card{
+      border: none; border-radius: 20px;
+      background: white;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+      transition: all 0.3s ease;
+      overflow: hidden;
+      display: flex; flex-direction: column;
+      height: 100%;
+    }
+    .rec-card:hover{
+      transform: translateY(-6px) scale(1.01);
+      box-shadow: 0 20px 45px rgba(0,0,0,0.12);
+    }
+    .rec-card .img-wrap{
+      position: relative;
+      height: 200px;
+      overflow: hidden;
+      background: linear-gradient(135deg, #0f4c5c, #1a6f7a);
+    }
+    .rec-card .img-wrap img{
+      width: 100%; height: 100%;
+      object-fit: cover;
+      transition: transform 0.5s ease, opacity 0.3s ease;
+    }
+    .rec-card:hover .img-wrap img{ transform: scale(1.08); }
+
+    .rec-badge{
+      position: absolute;
+      top: 12px; left: 12px;
+      background: rgba(15, 76, 92, 0.88);
+      color: white;
+      padding: 5px 12px;
+      border-radius: 50px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      backdrop-filter: blur(6px);
+      z-index: 2;
+      letter-spacing: 0.3px;
+    }
+    .rec-score{
+      position: absolute;
+      top: 12px; right: 12px;
+      background: rgba(255,255,255,0.92);
+      color: #8f5600;
+      padding: 4px 10px;
+      border-radius: 50px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      z-index: 2;
+    }
+
+    .attraction-tag{
+      display: inline-block;
+      background: #f1f3f5;
+      color: #495057;
+      font-size: 0.72rem;
+      padding: 3px 9px;
+      border-radius: 6px;
+      margin-right: 4px;
+      margin-bottom: 4px;
+      transition: background 0.2s;
+    }
+    .attraction-tag:hover{ background: #e2e5e8; }
+
+    .meta-chip{
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 0.75rem; color: var(--muted);
+      background: #f8f9fa;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    /* ── Empty State ── */
+    .empty-state{
+      background: var(--glass);
+      border: 1px dashed rgba(18,20,23,0.2);
+      padding: 50px 24px;
+      border-radius: 18px;
+      text-align: center;
+      color: var(--muted);
+    }
+    .empty-state h3{
+      font-family: "Fraunces", serif;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--ink);
+    }
+
+    /* ── ML Badge ── */
+    .ml-badge{
+      display: inline-flex; align-items: center; gap: 6px;
+      background: linear-gradient(135deg, #0f4c5c, #1a6f7a);
+      color: white;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.78rem; font-weight: 600;
+      letter-spacing: 0.4px;
+    }
+
+    /* ── Footer ── */
+    .footer{
+      padding: 30px 0 50px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 0.95rem;
+    }
+
+    /* ── Animations ── */
+    .fade-up{ animation: fadeUp 0.7s ease both; }
+    .delay-1{ animation-delay: 0.08s; }
+    .delay-2{ animation-delay: 0.16s; }
+    .delay-3{ animation-delay: 0.24s; }
+    .delay-4{ animation-delay: 0.32s; }
+    .delay-5{ animation-delay: 0.40s; }
+    .delay-6{ animation-delay: 0.48s; }
+
+    @keyframes fadeUp{
+      from{ opacity: 0; transform: translateY(20px); }
+      to{ opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 768px){
+      .section-header{ flex-direction: column; align-items: flex-start; }
+      .hero-banner{ min-height: 60vh; padding-top: 70px; }
+      .search-box{ border-radius: 20px; }
+      .rec-card .img-wrap{ height: 160px; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="nav-wrap py-3">
+    <div class="container d-flex align-items-center justify-content-between">
+      <div class="brand h4 m-0">Trip Planner</div>
+      <div class="d-flex gap-2 align-items-center flex-wrap">
+        <span class="pill">{{ request.user.username }}</span>
+        <a href="{% url 'expense_overview' %}" class="btn btn-outline-dark btn-sm">Expenses</a>
+        <a href="{% url 'history' %}" class="btn btn-outline-dark btn-sm">History</a>
+        <a href="{% url 'home' %}" class="btn btn-dark btn-sm">Home</a>
+        <a href="{% url 'logout' %}" class="btn btn-outline-dark btn-sm">Logout</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ══════════════════════  HERO  ══════════════════════ -->
+  <header class="hero-banner">
+    <div class="hero-content fade-up">
+      <div class="pill">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--sun);display:inline-block;"></span>
+        Trip discovery
+      </div>
+      <h1 class="hero-title">Plan your dream trip</h1>
+      <p class="hero-sub">Discover destinations, estimate budgets, and save the results directly to your own account history.</p>
+      <form method="POST" class="search-box fade-up delay-1" id="searchForm">
+        {% csrf_token %}
+        <div class="input-group">
+          <input type="text" name="place_name" class="form-control" placeholder="Search destination (Goa, Manali, Munnar...)" required id="searchInput">
+          <button class="btn btn-accent" id="searchBtn">Search</button>
+        </div>
+      </form>
+    </div>
+  </header>
+
+  <!-- ══════════════════════  SEARCH RESULTS  ══════════════════════ -->
+  <section class="section">
+    <div class="container">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Popular destinations</h2>
+          <p class="section-sub">Pick a place and jump straight into planning.</p>
+        </div>
+        <a href="{% url 'expense_overview' %}" class="btn btn-outline-dark">Manage expenses</a>
+      </div>
+
+      <div class="row g-4">
+        {% for place in places %}
+          <div class="col-md-6 col-lg-4">
+            <div class="place-card fade-up">
+              <div class="card-img-wrap ratio ratio-4x3">
+                <img
+                  src="{{ place.image }}"
+                  alt="{{ place.name }}"
+                  loading="lazy"
+                  referrerpolicy="no-referrer"
+                  onerror="this.onerror=null;this.style.display='none';"
+                >
+              </div>
+              <div class="card-body p-4">
+                <h3 class="card-title">{{ place.name }}</h3>
+                <p class="card-text">{{ place.desc|truncatechars:120 }}</p>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <span class="rating">★ {{ place.rating }}</span>
+                  <span class="budget">{{ place.budget }}</span>
+                </div>
+                <a href="{% url 'create_trip' %}?place={{ place.name|urlencode }}" class="btn btn-accent w-100">Start planning</a>
+              </div>
+            </div>
+          </div>
+        {% empty %}
+          <div class="col-12">
+            <div class="empty-state">
+              <h3>🌍 Where to next?</h3>
+              <p>Search for a destination above to see curated results and AI-powered recommendations.</p>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════  CATEGORY BROWSE  ══════════════════════ -->
+  <section class="section pt-0 pb-4">
+    <div class="container">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Browse by category</h2>
+          <p class="section-sub">Explore destinations by type — click a category to filter.</p>
+        </div>
+      </div>
+      <div class="d-flex flex-wrap gap-2" id="categoryPills">
+        <a href="{% url 'trip' %}" class="btn btn-sm {% if not active_category %}btn-dark{% else %}btn-outline-dark{% endif %}" style="border-radius:999px;padding:8px 18px;font-weight:600;">🌍 All</a>
+        {% for cat in all_categories %}
+          <a href="{% url 'trip' %}?category={{ cat|urlencode }}"
+             class="btn btn-sm {% if active_category == cat %}btn-dark{% else %}btn-outline-dark{% endif %}"
+             style="border-radius:999px;padding:8px 18px;font-weight:600;">
+            {% if cat == "Beach" %}🏖️{% elif cat == "Mountain" %}🏔️{% elif cat == "Heritage" %}🏛️{% elif cat == "Hill Station" %}⛰️{% elif cat == "Nature" %}🌿{% elif cat == "Adventure" %}🧗{% elif cat == "Spiritual" %}🕉️{% elif cat == "Culture" %}🎭{% elif cat == "City" %}🏙️{% elif cat == "Wildlife" %}🦁{% elif cat == "Desert" %}🏜️{% elif cat == "Romantic" %}💕{% elif cat == "Nightlife" %}🌃{% elif cat == "Relaxing" %}🧘{% elif cat == "Garden" %}🌸{% else %}📍{% endif %}
+            {{ cat }}
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════  CATEGORY RESULTS  ══════════════════════ -->
+  {% if category_results %}
+  <section class="section pt-0">
+    <div class="container">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">{{ active_category }} destinations</h2>
+          <p class="section-sub">{{ category_results|length }} destinations found in this category.</p>
+        </div>
+        <a href="{% url 'trip' %}" class="btn btn-outline-dark btn-sm" style="border-radius:999px;">✕ Clear filter</a>
+      </div>
+
+      <div class="row g-4">
+        {% for rec in category_results %}
+          <div class="col-md-6 col-lg-4">
+            <div class="rec-card fade-up delay-{{ forloop.counter }}">
+              <div class="img-wrap">
+                <div class="rec-badge">🏷️ {{ rec.reason }}</div>
+                <div class="rec-score">★ {{ rec.rating }}</div>
+                <img
+                  src="{{ rec.image_url }}"
+                  alt="{{ rec.place_name }}"
+                  loading="lazy"
+                  referrerpolicy="no-referrer"
+                  onerror="this.onerror=null;this.style.display='none';"
+                >
+              </div>
+              <div class="card-body p-4 d-flex flex-column">
+                <h4 class="fw-bold mb-1">{{ rec.place_name }}</h4>
+                <p class="text-muted small mb-2 flex-grow-1">{{ rec.description }}</p>
+                <div class="d-flex flex-wrap gap-1 mb-2">
+                  {% if rec.best_season %}
+                    <span class="meta-chip">📅 {{ rec.best_season }}</span>
+                  {% endif %}
+                  {% if rec.avg_budget %}
+                    <span class="meta-chip">💰 ₹{{ rec.avg_budget }}/day</span>
+                  {% endif %}
+                  {% if rec.category %}
+                    <span class="meta-chip">🏷️ {{ rec.category }}</span>
+                  {% endif %}
+                </div>
+                <div class="mb-3">
+                  {% for attr in rec.attractions %}
+                    <span class="attraction-tag">{{ attr }}</span>
+                  {% endfor %}
+                </div>
+                <a href="{% url 'create_trip' %}?place={{ rec.place_name|urlencode }}" class="btn btn-accent btn-sm w-100 mt-auto">Plan this expedition</a>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ══════════════════════  AI RECOMMENDATIONS  ══════════════════════ -->
+  {% if recommendations %}
+  <section class="section pt-0">
+    <div class="container">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Intelligent recommendations</h2>
+          <p class="section-sub">Personalized suggestions powered by our hybrid ML engine.</p>
+        </div>
+        <span class="ml-badge">🧠 TF-IDF + Cosine Similarity</span>
+      </div>
+
+      <div class="row g-4">
+        {% for rec in recommendations %}
+          <div class="col-md-6 col-lg-4">
+            <div class="rec-card fade-up delay-{{ forloop.counter }}">
+              <!-- Image container with gradient fallback -->
+              <div class="img-wrap">
+                <div class="rec-badge">✨ {{ rec.reason }}</div>
+                <div class="rec-score">★ {{ rec.rating }}</div>
+                <img
+                  src="{{ rec.image_url }}"
+                  alt="{{ rec.place_name }}"
+                  loading="lazy"
+                  referrerpolicy="no-referrer"
+                  onerror="this.onerror=null;this.style.display='none';"
+                >
+              </div>
+              <div class="card-body p-4 d-flex flex-column">
+                <h4 class="fw-bold mb-1">{{ rec.place_name }}</h4>
+                <p class="text-muted small mb-2 flex-grow-1">{{ rec.description }}</p>
+
+                <!-- Meta chips -->
+                <div class="d-flex flex-wrap gap-1 mb-2">
+                  {% if rec.best_season %}
+                    <span class="meta-chip">📅 {{ rec.best_season }}</span>
+                  {% endif %}
+                  {% if rec.avg_budget %}
+                    <span class="meta-chip">💰 ₹{{ rec.avg_budget }}/day</span>
+                  {% endif %}
+                  {% if rec.category %}
+                    <span class="meta-chip">🏷️ {{ rec.category }}</span>
+                  {% endif %}
+                </div>
+
+                <!-- Attraction tags -->
+                <div class="mb-3">
+                  {% for attr in rec.attractions %}
+                    <span class="attraction-tag">{{ attr }}</span>
+                  {% endfor %}
+                </div>
+
+                <a href="{% url 'create_trip' %}?place={{ rec.place_name|urlencode }}" class="btn btn-accent btn-sm w-100 mt-auto">Plan this expedition</a>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <footer class="footer">
+    Trip Planner • Build your route • Split expenses
+  </footer>
+
+</body>
+</html>

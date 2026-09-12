@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{place}} — Trip Planner</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#121417; --muted:#58606a; --accent:#ff6b4a; --accent-2:#1a6f7a;
+  --sun:#f4c15d; --card:rgba(255,255,255,0.92); --glass:rgba(255,255,255,0.62);
+  --ring:rgba(255,107,74,0.35); --radius:20px;
+}
+*{box-sizing:border-box; margin:0;}
+body{
+  background:
+    radial-gradient(1200px 600px at 80% -10%,rgba(255,224,204,0.75),transparent),
+    radial-gradient(900px 500px at -10% 10%,rgba(196,229,242,0.55),transparent),
+    linear-gradient(180deg,#f8f5ef 0%,#eef3f7 55%,#f8f5ef 100%);
+  font-family:"Plus Jakarta Sans",sans-serif;
+  color:var(--ink);
+}
+
+/* ── Nav ── */
+.nav-wrap{position:sticky;top:0;z-index:100;backdrop-filter:blur(14px);background:rgba(255,255,255,0.8);border-bottom:1px solid rgba(18,20,23,0.06);}
+.brand{font-family:"Fraunces",serif;font-weight:700;letter-spacing:-0.5px;}
+
+/* ── Hero ── */
+.hero{height:420px;margin:20px;border-radius:var(--radius);background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;color:#fff;text-align:center;position:relative;overflow:hidden;box-shadow:0 25px 60px rgba(18,20,23,0.2);}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(120deg,rgba(18,20,23,0.75),rgba(18,20,23,0.3)),radial-gradient(400px 200px at 15% 20%,rgba(255,193,94,0.3),transparent);pointer-events:none;}
+.hero>div{position:relative;z-index:2;}
+.hero h1{font-family:"Fraunces",serif;font-size:clamp(2.4rem,3.2vw+1rem,4rem);font-weight:700;letter-spacing:-1px;text-shadow:0 8px 18px rgba(0,0,0,0.35);}
+.hero p{font-size:1.15rem;font-weight:400;text-shadow:0 4px 10px rgba(0,0,0,0.35);margin-top:8px;color:rgba(255,255,255,0.85);}
+
+/* ── Cards ── */
+.g-card{border:1px solid rgba(18,20,23,0.06);border-radius:var(--radius);background:var(--card);box-shadow:0 8px 28px rgba(18,20,23,0.08);transition:transform .3s,box-shadow .3s;overflow:hidden;}
+.g-card:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(18,20,23,0.12);}
+.g-card-body{padding:1.5rem 1.75rem;}
+
+/* ── Section Title ── */
+.sec-title{font-family:"Fraunces",serif;font-weight:700;font-size:1.35rem;color:var(--ink);margin-bottom:0;display:flex;align-items:center;gap:10px;}
+.sec-title .icon{font-size:1.4rem;}
+.sec-badge{font-size:0.72rem;padding:5px 12px;border-radius:999px;font-weight:700;letter-spacing:0.3px;}
+
+/* ── Gallery ── */
+.gallery-scroll{display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory;gap:12px;padding-bottom:8px;}
+.gallery-scroll::-webkit-scrollbar{height:6px;}
+.gallery-scroll::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.15);border-radius:99px;}
+.gallery-scroll img{flex-shrink:0;scroll-snap-align:start;height:220px;width:280px;object-fit:cover;border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,0.12);border:2px solid rgba(255,255,255,0.6);transition:transform .25s;}
+.gallery-scroll img:hover{transform:scale(1.03);}
+
+/* ── Map ── */
+.map-frame{border-radius:14px;overflow:hidden;border:1px solid rgba(18,20,23,0.06);}
+
+/* ── Route Info ── */
+.route-info-box{background:linear-gradient(135deg,rgba(26,111,122,0.08),rgba(26,111,122,0.03));border:1px solid rgba(26,111,122,0.15);border-radius:16px;padding:1rem 1.25rem;}
+.route-info-box .dist{font-size:1.5rem;font-weight:800;color:var(--accent-2);}
+.mode-btn{border-radius:999px!important;font-size:0.78rem!important;padding:6px 14px!important;font-weight:600!important;transition:all .2s!important;}
+.mode-btn.active{background:var(--ink)!important;color:#fff!important;border-color:var(--ink)!important;}
+
+/* ── Weather ── */
+.wx-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;}
+.wx-day{background:linear-gradient(135deg,rgba(26,111,122,0.06),rgba(26,111,122,0.02));border:1px solid rgba(26,111,122,0.08);border-radius:14px;padding:12px 6px;text-align:center;transition:transform .2s,box-shadow .2s;}
+.wx-day:hover{transform:translateY(-3px);box-shadow:0 6px 16px rgba(0,0,0,0.08);}
+.wx-day .wicon{font-size:1.6rem;margin:4px 0;}
+.wx-day .wtemp{font-size:1.15rem;font-weight:800;color:var(--accent-2);}
+.wx-day .wlabel{font-size:0.68rem;color:var(--muted);font-weight:600;}
+
+/* ── Season Calendar ── */
+.season-bar{display:flex;gap:4px;}
+.season-mo{flex:1;text-align:center;padding:10px 2px;border-radius:10px;font-size:0.72rem;font-weight:700;cursor:default;transition:transform .15s;}
+.season-mo:hover{transform:scale(1.08);}
+.s-best{background:linear-gradient(135deg,#d4edda,#c3e6cb);color:#155724;}
+.s-good{background:linear-gradient(135deg,#fff3cd,#ffeeba);color:#856404;}
+.s-avoid{background:linear-gradient(135deg,#f8d7da,#f5c6cb);color:#721c24;}
+
+/* ── Itinerary ── */
+.itin-day{background:var(--card);border:1px solid rgba(18,20,23,0.06);border-radius:16px;padding:1.25rem 1.5rem;margin-bottom:12px;}
+.itin-day-title{font-family:"Fraunces",serif;font-weight:700;font-size:1.05rem;color:var(--accent-2);margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid rgba(26,111,122,0.12);}
+.itin-row{display:flex;gap:14px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed rgba(0,0,0,0.06);}
+.itin-row:last-child{border-bottom:none;}
+.itin-time{font-weight:700;font-size:0.82rem;color:var(--accent-2);min-width:105px;white-space:nowrap;background:rgba(26,111,122,0.06);padding:4px 10px;border-radius:8px;}
+.itin-act{font-size:0.92rem;color:var(--ink);line-height:1.4;padding-top:2px;}
+
+/* ── Similar ── */
+.sim-card{border-radius:16px;overflow:hidden;background:var(--card);border:1px solid rgba(0,0,0,0.06);transition:transform .3s,box-shadow .3s;}
+.sim-card:hover{transform:translateY(-4px);box-shadow:0 12px 30px rgba(0,0,0,0.1);}
+.sim-card img{width:100%;height:160px;object-fit:cover;}
+.sim-card .sim-body{padding:14px 16px;}
+
+/* ── Budget ── */
+.budget-kpi{background:linear-gradient(135deg,rgba(26,111,122,0.08),rgba(26,111,122,0.02));border:1px solid rgba(26,111,122,0.15);border-radius:16px;padding:1rem 1.25rem;}
+.budget-bar{height:8px;background:rgba(0,0,0,0.06);border-radius:99px;overflow:hidden;margin-top:4px;}
+.budget-bar>div{height:100%;width:0%;transition:width .25s ease;}
+.form-control,.form-select{border-radius:12px;padding:0.75rem 1rem;border:1px solid rgba(18,20,23,0.1);box-shadow:inset 0 1px 3px rgba(0,0,0,0.04);transition:all .2s;}
+.form-control:focus{border-color:var(--accent);box-shadow:0 0 0 .2rem var(--ring),inset 0 1px 3px rgba(0,0,0,0.04);}
+.btn-accent{background:linear-gradient(135deg,var(--accent),#ff8a6b);border:none;color:#fff;font-weight:700;border-radius:12px;padding:0.75rem 1.6rem;box-shadow:0 8px 20px rgba(255,107,74,0.25);transition:transform .2s,box-shadow .2s;}
+.btn-accent:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(255,107,74,0.35);color:#fff;}
+
+/* ── Animations ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
+.fade-up{animation:fadeUp .6s ease both;}
+.d1{animation-delay:.08s}.d2{animation-delay:.16s}.d3{animation-delay:.24s}.d4{animation-delay:.32s}
+
+@media(max-width:768px){
+  .hero{height:300px;margin:12px;}
+  .wx-grid{grid-template-columns:repeat(4,1fr);}
+  .gallery-scroll img{height:180px;width:220px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ NAV ═══ -->
+<nav class="nav-wrap py-3">
+  <div class="container d-flex align-items-center justify-content-between">
+    <div class="brand h5 m-0">Trip Planner</div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      <span class="badge text-bg-dark">{{ request.user.username }}</span>
+      <a href="{% url 'home' %}" class="btn btn-dark btn-sm">Home</a>
+      <a href="{% url 'trip' %}" class="btn btn-outline-dark btn-sm">Plan Trip</a>
+      <a href="{% url 'expense_overview' %}" class="btn btn-outline-dark btn-sm">Expenses</a>
+      <a href="{% url 'history' %}" class="btn btn-outline-dark btn-sm">History</a>
+      <a href="{% url 'logout' %}" class="btn btn-outline-dark btn-sm">Logout</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══ HERO ═══ -->
+<div class="hero" style="background-color:#1a6f7a;background-image:linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.5)),url('{{images.0|default:fallback_image}}');">
+  <div>
+    <h1>{{place}}</h1>
+    <p>Discover top attractions and plan your perfect trip</p>
+  </div>
+</div>
+
+<!-- ═══ MAIN CONTENT ═══ -->
+<div class="container py-4">
+<div class="row g-4">
+
+<!-- ══ LEFT COLUMN ══ -->
+<div class="col-lg-7">
+
+  <!-- Attractions Gallery -->
+  <div class="g-card fade-up">
+    <div class="g-card-body">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="sec-title"><span class="icon">📸</span> {{place}} Attractions</h5>
+      </div>
+      <div class="gallery-scroll">
+        {% for img in images|slice:"1:8" %}
+        <img src="{{ img|default:fallback_image }}" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='{{ fallback_image }}';" alt="{{ place }}">
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Budget Calculator -->
+  <div class="g-card fade-up d1 mt-4">
+    <div class="g-card-body">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="sec-title"><span class="icon">💰</span> Budget Calculator</h5>
+        <span class="sec-badge" style="background:rgba(26,111,122,0.1);color:var(--accent-2);">Smart Estimate</span>
+      </div>
+
+      <div class="budget-kpi mb-3">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="fw-bold" style="font-size:0.9rem;">Estimated total</div>
+            <div class="small text-muted" id="est_base_note">2 people • 2 days</div>
+          </div>
+          <div class="text-end">
+            <div id="est_total" style="font-size:1.6rem;font-weight:800;color:var(--accent-2);">₹0</div>
+            <div class="small text-muted">Per person: <strong id="est_per_person">₹0</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <form method="POST" id="budgetForm">
+      {% csrf_token %}
+      <div class="row g-3">
+        <div class="col-6"><label class="form-label small fw-bold" for="people">People</label><input type="number" name="people" id="people" min="1" step="1" class="form-control" value="{{ budget_input.people }}"></div>
+        <div class="col-6"><label class="form-label small fw-bold" for="days">Days</label><input type="number" name="days" id="days" min="1" step="1" class="form-control" value="{{ budget_input.days }}"></div>
+        <div class="col-6"><label class="form-label small fw-bold" for="hotel_per_night">Hotel/night</label><input type="number" name="hotel_per_night" id="hotel_per_night" min="0" step="0.01" class="form-control" value="{{ budget_input.hotel_per_night }}"></div>
+        <div class="col-6"><label class="form-label small fw-bold" for="food_per_day">Food/person/day</label><input type="number" name="food_per_day" id="food_per_day" min="0" step="0.01" class="form-control" value="{{ budget_input.food_per_day }}"></div>
+        <div class="col-4"><label class="form-label small fw-bold" for="travel">Travel</label><input type="number" name="travel" id="travel" min="0" step="0.01" class="form-control" value="{{ budget_input.travel }}"></div>
+        <div class="col-4"><label class="form-label small fw-bold" for="activities">Activities</label><input type="number" name="activities" id="activities" min="0" step="0.01" class="form-control" value="{{ budget_input.activities }}"></div>
+        <div class="col-4"><label class="form-label small fw-bold" for="misc">Misc</label><input type="number" name="misc" id="misc" min="0" step="0.01" class="form-control" value="{{ budget_input.misc }}"></div>
+        <div class="col-12">
+          <label class="form-label small fw-bold" for="contingency_pct">Contingency</label>
+          <input type="range" name="contingency_pct" id="contingency_pct" min="0" max="30" step="1" class="form-range" value="{{ budget_input.contingency_pct|floatformat:0 }}">
+          <div class="d-flex justify-content-between" style="font-size:0.78rem;color:var(--muted);"><span>0%</span><span class="fw-bold">Selected: <span id="contingency_label">{{ budget_input.contingency_pct|floatformat:0 }}</span>%</span><span>30%</span></div>
+        </div>
+      </div>
+
+      <div class="mt-3" style="font-size:0.88rem;">
+        <div class="d-flex justify-content-between mb-1"><span>Hotel</span><span id="b_hotel" class="fw-bold">₹0</span></div><div class="budget-bar"><div id="bar_hotel" style="background:#4361ee;"></div></div>
+        <div class="d-flex justify-content-between mb-1 mt-2"><span>Food</span><span id="b_food" class="fw-bold">₹0</span></div><div class="budget-bar"><div id="bar_food" style="background:#2ec4b6;"></div></div>
+        <div class="d-flex justify-content-between mb-1 mt-2"><span>Travel</span><span id="b_travel" class="fw-bold">₹0</span></div><div class="budget-bar"><div id="bar_travel" style="background:#7209b7;"></div></div>
+        <div class="d-flex justify-content-between mb-1 mt-2"><span>Activities</span><span id="b_activities" class="fw-bold">₹0</span></div><div class="budget-bar"><div id="bar_activities" style="background:#f77f00;"></div></div>
+        <div class="d-flex justify-content-between mb-1 mt-2"><span>Misc</span><span id="b_misc" class="fw-bold">₹0</span></div><div class="budget-bar"><div id="bar_misc" style="background:#06d6a0;"></div></div>
+        <div class="d-flex justify-content-between mb-1 mt-2"><span>Contingency</span><span id="b_contingency" class="fw-bold">₹0</span></div><div class="budget-bar"><div id="bar_contingency" style="background:#ef476f;"></div></div>
+      </div>
+
+      <button class="btn btn-accent w-100 mt-3">Calculate Trip Cost</button>
+      </form>
+
+      {% if total %}
+      <div style="background:linear-gradient(135deg,rgba(26,111,122,0.08),rgba(26,111,122,0.02));border:1px solid rgba(26,111,122,0.15);border-radius:14px;padding:1.25rem;margin-top:1rem;">
+        <div class="d-flex justify-content-between align-items-center">
+          <div><div class="fw-bold">Total Trip Cost</div><div class="small text-muted">Server calculated</div></div>
+          <div class="text-end"><div style="font-size:1.5rem;font-weight:800;color:var(--accent-2);">₹{{total}}</div><div class="small text-muted">Per person: <strong>₹{{per_person}}</strong></div></div>
+        </div>
+        <a href="/expense/" class="btn btn-outline-dark btn-sm mt-2 w-100">Manage Expenses →</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- ══ RIGHT COLUMN ══ -->
+<div class="col-lg-5">
+
+  <!-- Route & Distance -->
+  <div class="g-card fade-up d1">
+    <div class="g-card-body">
+      <h5 class="sec-title mb-3"><span class="icon">🗺️</span> Route & Distance</h5>
+
+      <div id="routeInfo" style="display:none;" class="mb-3">
+        <div class="route-info-box">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div><div class="small text-muted">From your location to</div><div class="fw-bold">{{place}}</div></div>
+            <div class="text-end"><div id="routeDistance" class="dist">—</div><div id="routeDuration" class="small text-muted"></div></div>
+          </div>
+          <div class="d-flex gap-2 mt-2 flex-wrap">
+            <button class="btn btn-sm btn-outline-dark mode-btn active" onclick="setTravelMode('driving')" id="mode_driving">🚗 Driving</button>
+            <button class="btn btn-sm btn-outline-dark mode-btn" onclick="setTravelMode('transit')" id="mode_transit">🚂 Transit</button>
+            <button class="btn btn-sm btn-outline-dark mode-btn" onclick="setTravelMode('walking')" id="mode_walking">🚶 Walking</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="routeLoading" class="text-center py-2"><div class="spinner-border spinner-border-sm text-secondary"></div><div class="small text-muted mt-1">Detecting location...</div></div>
+      <div id="routeFallbackInfo" style="display:none;" class="mb-2"><div style="background:#fff3cd;border:1px solid #ffc107;border-radius:10px;padding:8px 12px;font-size:0.82rem;">📍 Location unavailable. <a href="#" onclick="requestLocation();return false;" class="fw-bold">Try again</a></div></div>
+
+      <div class="map-frame">
+        <iframe id="mapIframe" width="100%" height="300" frameborder="0" style="border:0;" src="https://maps.google.com/maps?q={{place}}&output=embed" allowfullscreen></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- About -->
+  <div class="g-card fade-up d2 mt-4">
+    <div class="g-card-body">
+      <h5 class="sec-title mb-3"><span class="icon">📖</span> About {{place}}</h5>
+      {% if desc %}<p style="line-height:1.75;font-size:0.92rem;">{{ desc }}</p>{% else %}<p class="text-muted">No description available.</p>{% endif %}
+    </div>
+  </div>
+
+  <!-- Live Weather -->
+  {% if dest_details %}
+  <div class="g-card fade-up d3 mt-4">
+    <div class="g-card-body">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="sec-title"><span class="icon">🌤️</span> Live Weather</h5>
+        <span class="sec-badge" style="background:rgba(244,193,93,0.2);color:#856404;">7-day forecast</span>
+      </div>
+      <div id="weatherGrid" class="wx-grid">
+        <div class="text-center py-2" style="grid-column:1/-1;"><div class="spinner-border spinner-border-sm text-secondary"></div><div class="small text-muted mt-1">Loading...</div></div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Best Season -->
+  {% if dest_details %}
+  <div class="g-card fade-up d4 mt-4">
+    <div class="g-card-body">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="sec-title"><span class="icon">📅</span> Best Time to Visit</h5>
+        <span class="sec-badge" style="background:rgba(21,135,52,0.1);color:#155724;">{{ dest_details.best_season }}</span>
+      </div>
+      <p class="small text-muted mb-2">🟢 Best &nbsp; 🟡 Okay &nbsp; 🔴 Avoid</p>
+      <div class="season-bar" id="seasonBar"></div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Hotel Prices -->
+  <div class="g-card fade-up mt-4 mb-4">
+    <div class="g-card-body">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="sec-title"><span class="icon">🏨</span> Hotel Deals</h5>
+        <span class="sec-badge" style="background:rgba(26,111,122,0.1);color:var(--accent-2);">Live via Makcorps</span>
+      </div>
+      <div id="hotelLoading" class="text-center py-4">
+        <div class="spinner-border spinner-border-sm text-secondary"></div>
+        <div class="small text-muted mt-1">Finding cheapest hotels...</div>
+      </div>
+      <div id="hotelResults" style="display:none;" class="d-flex flex-column gap-3">
+        <!-- Hotels will be injected here -->
+      </div>
+      <div id="hotelError" style="display:none;" class="text-center text-danger small">
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /row -->
+
+<!-- ═══ FULL-WIDTH SECTIONS ═══ -->
+
+<!-- Smart Itinerary -->
+{% if itinerary %}
+<div class="g-card fade-up mt-4">
+  <div class="g-card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="sec-title"><span class="icon">🗓️</span> Smart Itinerary — {{ itinerary|length }}-Day Plan</h5>
+      <span class="sec-badge" style="background:linear-gradient(135deg,var(--accent),#ff8a6b);color:#fff;">AI Generated</span>
+    </div>
+    <div class="row g-3">
+      {% for day in itinerary %}
+      <div class="col-lg-4">
+        <div class="itin-day">
+          <div class="itin-day-title">{{ day.title }}</div>
+          {% for item in day.activities %}
+          <div class="itin-row">
+            <span class="itin-time">{{ item.time }}</span>
+            <span class="itin-act">{{ item.activity }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Similar Destinations -->
+{% if similar_destinations %}
+<div class="g-card fade-up mt-4 mb-5">
+  <div class="g-card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="sec-title"><span class="icon">🧭</span> Similar Destinations</h5>
+      <span class="sec-badge" style="background:rgba(26,111,122,0.1);color:var(--accent-2);">ML Powered</span>
+    </div>
+    <div class="row g-3">
+      {% for sim in similar_destinations %}
+      <div class="col-md-4">
+        <div class="sim-card">
+          <img src="{{ sim.image_url }}" alt="{{ sim.place_name }}" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display='none';">
+          <div class="sim-body">
+            <h6 class="fw-bold mb-1">{{ sim.place_name }}</h6>
+            <div class="d-flex gap-1 flex-wrap mb-2">
+              <span class="badge" style="background:rgba(26,111,122,0.1);color:var(--accent-2);font-size:0.68rem;">★ {{ sim.rating }}</span>
+              {% if sim.avg_budget %}<span class="badge" style="background:rgba(244,193,93,0.15);color:#856404;font-size:0.68rem;">₹{{ sim.avg_budget }}/day</span>{% endif %}
+              {% if sim.best_season %}<span class="badge" style="background:rgba(0,0,0,0.05);color:var(--muted);font-size:0.68rem;">{{ sim.best_season }}</span>{% endif %}
+            </div>
+            <p class="text-muted mb-2" style="font-size:0.8rem;">{{ sim.reason }}</p>
+            <a href="{% url 'create_trip' %}?place={{ sim.place_name|urlencode }}" class="btn btn-outline-dark btn-sm w-100" style="border-radius:10px;font-weight:600;">Explore →</a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+</div><!-- /container -->
+
+<!-- ═══ BUDGET JS ═══ -->
+<script>
+(function(){
+  const inr=new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0});
+  const ids=['people','days','hotel_per_night','food_per_day','travel','activities','misc','contingency_pct'];
+  const el=Object.fromEntries(ids.map(id=>[id,document.getElementById(id)]));
+  const out={total:document.getElementById('est_total'),per:document.getElementById('est_per_person'),baseNote:document.getElementById('est_base_note'),contingencyLabel:document.getElementById('contingency_label'),hotel:document.getElementById('b_hotel'),food:document.getElementById('b_food'),travel:document.getElementById('b_travel'),activities:document.getElementById('b_activities'),misc:document.getElementById('b_misc'),contingency:document.getElementById('b_contingency'),barHotel:document.getElementById('bar_hotel'),barFood:document.getElementById('bar_food'),barTravel:document.getElementById('bar_travel'),barActivities:document.getElementById('bar_activities'),barMisc:document.getElementById('bar_misc'),barCont:document.getElementById('bar_contingency')};
+  function n(v){const x=parseFloat(v);return Number.isFinite(x)?x:0;}
+  function ci(v,min,fb){const x=parseInt(v,10);if(!Number.isFinite(x))return fb;return Math.max(min,x);}
+  function pct(v,t){if(t<=0)return 0;return Math.max(0,Math.min(100,(v/t)*100));}
+  function render(){
+    const people=ci(el.people?.value,1,1),days=ci(el.days?.value,1,1);
+    const h=Math.max(0,n(el.hotel_per_night?.value)),f=Math.max(0,n(el.food_per_day?.value));
+    const tr=Math.max(0,n(el.travel?.value)),act=Math.max(0,n(el.activities?.value)),mi=Math.max(0,n(el.misc?.value));
+    const cp=Math.max(0,Math.min(30,n(el.contingency_pct?.value)));
+    if(out.contingencyLabel) out.contingencyLabel.textContent=String(Math.round(cp));
+    const ht=h*days,ft=f*people*days,base=ht+ft+tr+act+mi,cont=base*(cp/100),total=base+cont,per=total/people;
+    out.total.textContent=inr.format(Math.round(total));out.per.textContent=inr.format(Math.round(per));out.baseNote.textContent=`${people} people • ${days} days`;
+    out.hotel.textContent=inr.format(Math.round(ht));out.food.textContent=inr.format(Math.round(ft));out.travel.textContent=inr.format(Math.round(tr));out.activities.textContent=inr.format(Math.round(act));out.misc.textContent=inr.format(Math.round(mi));out.contingency.textContent=inr.format(Math.round(cont));
+    out.barHotel.style.width=pct(ht,total)+'%';out.barFood.style.width=pct(ft,total)+'%';out.barTravel.style.width=pct(tr,total)+'%';out.barActivities.style.width=pct(act,total)+'%';out.barMisc.style.width=pct(mi,total)+'%';out.barCont.style.width=pct(cont,total)+'%';
+  }
+  ids.forEach(id=>el[id]?.addEventListener('input',render));render();
+})();
+</script>
+
+<!-- ═══ ROUTE JS ═══ -->
+<script>
+(function(){
+  const DEST='{{place}}';let uLat=null,uLon=null,mode='driving';
+  function hav(a1,o1,a2,o2){const R=6371,dL=(a2-a1)*Math.PI/180,dO=(o2-o1)*Math.PI/180,x=Math.sin(dL/2)**2+Math.cos(a1*Math.PI/180)*Math.cos(a2*Math.PI/180)*Math.sin(dO/2)**2;return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
+  function fmt(km){return km<1?Math.round(km*1000)+' m':km.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',')+' km';}
+  function dur(km,m){let s;switch(m){case'walking':s=5;break;case'transit':s=60;break;default:s=70;}const h=km/s;if(h<1)return Math.round(h*60)+' min';return Math.floor(h)+'h '+Math.round((h-Math.floor(h))*60)+'min';}
+  function updMap(m){if(!uLat||!uLon)return;const f=document.getElementById('mapIframe');if(!f)return;const o=uLat+','+uLon;f.src='https://maps.google.com/maps?saddr='+o+'&daddr='+encodeURIComponent(DEST)+'&dirflg='+(m==='transit'?'r':m==='walking'?'w':'d')+'&output=embed';}
+  function updInfo(km,m){const d=document.getElementById('routeDistance'),t=document.getElementById('routeDuration');if(d)d.textContent=fmt(km);if(t)t.textContent='~'+dur(km,m)+' by '+m;}
+  window.setTravelMode=function(m){mode=m;['driving','transit','walking'].forEach(x=>{const b=document.getElementById('mode_'+x);if(b)b.classList.toggle('active',x===m);});if(uLat&&uLon){fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(DEST)+'&format=json&limit=1',{headers:{'User-Agent':'TripPlanner/1.0'}}).then(r=>r.json()).then(d=>{if(d&&d.length>0){updInfo(hav(uLat,uLon,parseFloat(d[0].lat),parseFloat(d[0].lon)),m);}}).catch(()=>{});updMap(m);}};
+  window.requestLocation=function(){document.getElementById('routeLoading').style.display='block';document.getElementById('routeFallbackInfo').style.display='none';init();};
+  function init(){if(!navigator.geolocation){fb();return;}navigator.geolocation.getCurrentPosition(function(p){uLat=p.coords.latitude;uLon=p.coords.longitude;document.getElementById('routeLoading').style.display='none';document.getElementById('routeInfo').style.display='block';fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(DEST)+'&format=json&limit=1',{headers:{'User-Agent':'TripPlanner/1.0'}}).then(r=>r.json()).then(d=>{if(d&&d.length>0){updInfo(hav(uLat,uLon,parseFloat(d[0].lat),parseFloat(d[0].lon)),mode);}else{document.getElementById('routeDistance').textContent='N/A';}}).catch(()=>{document.getElementById('routeDistance').textContent='N/A';});updMap(mode);},function(){fb();},{enableHighAccuracy:false,timeout:8000,maximumAge:300000});}
+  function fb(){document.getElementById('routeLoading').style.display='none';document.getElementById('routeFallbackInfo').style.display='block';document.getElementById('routeInfo').style.display='none';}
+  init();
+})();
+</script>
+
+<!-- ═══ WEATHER + SEASON JS ═══ -->
+{% if dest_details %}
+<script>
+(function(){
+  const lat={{dest_details.latitude|default:"0"}},lon={{dest_details.longitude|default:"0"}};
+  if(!lat&&!lon)return;
+  const IC={0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',51:'🌦️',53:'🌧️',55:'🌧️',61:'🌧️',63:'🌧️',65:'🌧️',71:'🌨️',73:'🌨️',75:'🌨️',80:'🌦️',81:'🌧️',82:'🌧️',95:'⛈️',96:'⛈️',99:'⛈️'};
+  fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto`).then(r=>r.json()).then(data=>{
+    const g=document.getElementById('weatherGrid');if(!g||!data.daily)return;
+    const t=data.daily.time,mx=data.daily.temperature_2m_max,mn=data.daily.temperature_2m_min,c=data.daily.weathercode;let h='';
+    for(let i=0;i<Math.min(7,t.length);i++){const d=new Date(t[i]);h+=`<div class="wx-day"><div class="wlabel">${d.toLocaleDateString('en-IN',{weekday:'short'})}</div><div class="wlabel">${d.toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</div><div class="wicon">${IC[c[i]]||'🌡️'}</div><div class="wtemp">${Math.round(mx[i])}°</div><div class="wlabel">${Math.round(mn[i])}° low</div></div>`;}
+    g.innerHTML=h;
+  }).catch(()=>{const g=document.getElementById('weatherGrid');if(g)g.innerHTML='<div class="text-muted small" style="grid-column:1/-1;">Weather unavailable</div>';});
+})();
+(function(){
+  const bar=document.getElementById('seasonBar');if(!bar)return;
+  const bs='{{dest_details.best_season|default:""}}'.toLowerCase();
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const sm={winter:[10,11,0,1],autumn:[8,9,10],summer:[2,3,4],monsoon:[5,6,7],spring:[1,2,3],'all year':[0,1,2,3,4,5,6,7,8,9,10,11],'year-round':[0,1,2,3,4,5,6,7,8,9,10,11]};
+  const gm={winter:[2,9],autumn:[7,11],summer:[1,5],monsoon:[4,8],spring:[0,4]};
+  let best=new Set(),good=new Set();
+  for(const[k,v]of Object.entries(sm)){if(bs.includes(k))v.forEach(i=>best.add(i));}
+  for(const[k,v]of Object.entries(gm)){if(bs.includes(k))v.forEach(i=>good.add(i));}
+  if(best.size===0){[10,11,0,1].forEach(i=>best.add(i));[2,9].forEach(i=>good.add(i));}
+  let h='';months.forEach((m,i)=>{let c='s-avoid';if(best.has(i))c='s-best';else if(good.has(i))c='s-good';h+=`<div class="season-mo ${c}">${m}</div>`;});
+  bar.innerHTML=h;
+})();
+</script>
+{% endif %}
+
+<!-- ═══ HOTEL API JS ═══ -->
+<script>
+(function(){
+  const dest = '{{place|escapejs}}';
+  fetch(`/hotel_prices/?place=${encodeURIComponent(dest)}`)
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById("hotelLoading").style.display = "none";
+      if(data.error) {
+        const errEl = document.getElementById("hotelError");
+        errEl.innerText = data.error;
+        errEl.style.display = "block";
+        return;
+      }
+      
+      let hotels = [];
+      if(data.status === "mock") {
+         hotels = data.data; // Using mock fallback
+      } else if(data.data && Array.isArray(data.data)) {
+         hotels = data.data.filter(h => h.name).slice(0, 10); // display up to 10
+      }
+
+      if(hotels.length === 0){
+         document.getElementById("hotelError").innerText = "No hotels found.";
+         document.getElementById("hotelError").style.display = "block";
+         return;
+      }
+
+      const resDiv = document.getElementById("hotelResults");
+      // Create a scrolling container if there are many hotels
+      resDiv.className = "d-flex flex-column gap-3 pe-2";
+      resDiv.style.maxHeight = "500px";
+      resDiv.style.overflowY = "auto";
+      
+      let htmlString = "";
+      hotels.forEach((h, idx) => {
+         const name = h.name || "Unknown Hotel";
+         // format rating properly (1 decimal)
+         const rawRating = h.reviews ? h.reviews.rating : 0;
+         const rating = rawRating ? parseFloat(rawRating).toFixed(1) : "New";
+         const count = h.reviews ? h.reviews.count : 0;
+         const price = h.price1 || h.price2 || h.price3 || "N/A";
+         const vendor = h.vendor1 || h.vendor2 || h.vendor3 || "OTA";
+         const numIdx = String(idx + 1).padStart(2, '0');
+
+         htmlString += `
+           <div class="p-3 shadow-sm" style="background:#fff; border-radius:14px; border:1px solid rgba(0,0,0,0.05); transition:transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,0.08)';" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 .125rem .25rem rgba(0,0,0,.075)';">
+             <div class="d-flex justify-content-between align-items-start gap-2">
+               <div>
+                 <div class="d-flex align-items-center gap-2 mb-1">
+                    <span style="font-size:0.7rem; font-weight:800; color:#fff; background:var(--ink); padding:2px 6px; border-radius:6px;">#${numIdx}</span>
+                    <span class="fw-bold text-dark" style="font-size:1.05rem; line-height:1.2;">${name}</span>
+                 </div>
+                 <div class="d-flex gap-2 align-items-center mt-2">
+                    <span style="font-size:0.75rem; font-weight:700; color:#fff; background:${rawRating >= 4.5 ? '#06d6a0' : (rawRating >= 4.0 ? '#118ab2' : '#f4a261')}; padding:3px 8px; border-radius:99px;">★ ${rating}</span>
+                    <span class="small text-muted" style="font-size:0.75rem;">(${count} reviews)</span>
+                 </div>
+               </div>
+               <div class="text-end" style="min-width: 90px;">
+                 <div class="badge mb-1" style="background:rgba(255,107,74,0.1); color:var(--accent); font-size:0.7rem; font-weight:700;">${vendor}</div>
+                 <div class="fw-bold" style="color:var(--ink); font-size:1.25rem;">${price}</div>
+               </div>
+             </div>
+           </div>
+         `;
+      });
+      resDiv.innerHTML = htmlString;
+      resDiv.style.display = "flex";
+    })
+    .catch(e => {
+       document.getElementById("hotelLoading").style.display = "none";
+       document.getElementById("hotelError").innerText = "Error loading hotels.";
+       document.getElementById("hotelError").style.display = "block";
+    });
+})();
+</script>
+
+</body>
+</html>

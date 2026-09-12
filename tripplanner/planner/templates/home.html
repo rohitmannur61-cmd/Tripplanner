@@ -1,0 +1,278 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tripp — Plan a Trip That Feels Effortless</title>
+  <link rel="stylesheet" href="{% static 'landing/style.css' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;0,9..144,900;1,9..144,700;1,9..144,900&family=DM+Mono:wght@300;400;500&family=Cabinet+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- ════════ FIXED CANVAS — ALWAYS FULLSCREEN ════════ -->
+  <canvas id="worldCanvas"></canvas>
+
+  <!-- Grain -->
+  <div class="grain"></div>
+
+  <!-- Stars -->
+  <div id="stars" class="stars"></div>
+
+  <!-- Cursor -->
+  <div id="cur" class="cur"></div>
+  <div id="curRing" class="cur-ring"></div>
+
+  <!-- Scroll bar top -->
+  <div id="scrollBar" class="scroll-bar"></div>
+
+  <!-- ════════ SCROLL CONTAINER ════════ -->
+  <div id="scroller" class="scroller">
+
+    <!-- ══ PANEL 1: HERO HUD ══ -->
+    <section class="panel" id="panel1">
+
+      <!-- TOP-LEFT: Logo + Nav -->
+      <div class="hud-tl" id="hudTL">
+        <div class="hud-logo">Tripp<span>.</span></div>
+        <nav class="hud-nav">
+          <a href="#panel2">Features</a>
+          <a href="#panel3">Your Space</a>
+          <a href="{% url 'expense_overview' %}">Expenses</a>
+        </nav>
+      </div>
+
+      <!-- TOP-RIGHT: Auth -->
+      <div class="hud-tr" id="hudTR">
+        {% if request.user.is_authenticated %}
+            <span class="tr-plain" style="opacity:0.6; pointer-events:none;">Hello, {{ request.user.username }}</span>
+            <a href="{% url 'logout' %}" class="tr-plain">Log out</a>
+            <a href="{% url 'trip' %}" class="tr-cta">Launch Expedition →</a>
+        {% else %}
+            <a href="{% url 'login' %}" class="tr-plain">Log in</a>
+            <a href="{% url 'register' %}" class="tr-cta">Get Started →</a>
+        {% endif %}
+      </div>
+
+      <!-- LEFT SIDE PANEL: Main text -->
+      <div class="hud-left" id="hudLeft">
+        <div class="hud-badge" id="hudBadge">
+          <span class="bdot"></span>
+          Smart travel + expenses
+        </div>
+        <h1 class="hud-title" id="hudTitle"></h1>
+        <p class="hud-sub" id="hudSub">Discover destinations, split costs, track every expense — one beautifully simple app.</p>
+        <div class="hud-btns" id="hudBtns">
+          <a href="{% url 'trip' %}" class="btn-go" style="text-decoration:none;">Start Planning <span class="barr">→</span></a>
+          <a href="{% url 'expense_overview' %}" class="btn-see" style="text-decoration:none;">View Dashboard</a>
+        </div>
+      </div>
+
+      <!-- RIGHT SIDE: Stats pill -->
+      <div class="hud-right" id="hudRight">
+        <div class="stats-pill">
+          <div class="sp-item">
+            <span class="sp-num" data-target="{{ all_trips_count }}">{{ all_trips_count }}</span><span class="sp-sfx">+</span>
+            <span class="sp-lbl">trips</span>
+          </div>
+          <div class="sp-div"></div>
+          <div class="sp-item">
+            <span class="sp-num" data-target="{{ all_destinations_count }}">{{ all_destinations_count }}</span>
+            <span class="sp-lbl">destinations</span>
+          </div>
+          <div class="sp-div"></div>
+          <div class="sp-item">
+            <span class="sp-pre">₹</span><span class="sp-num" data-target="{{ total_amount_tracked|floatformat:0 }}">{{ total_amount_tracked|floatformat:0 }}</span>
+            <span class="sp-lbl">tracked</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM: 4 feature pills anchored to bottom -->
+      <div class="hud-bottom" id="hudBottom">
+        <div class="feat-pill fp0">
+          <span class="fp-icon">🗺️</span>
+          <span class="fp-label">Trip Builder</span>
+        </div>
+        <div class="feat-pill fp1">
+          <span class="fp-icon">💸</span>
+          <span class="fp-label">Expense Split</span>
+        </div>
+        <div class="feat-pill fp2">
+          <span class="fp-icon">📊</span>
+          <span class="fp-label">Clean Insights</span>
+        </div>
+        <div class="feat-pill fp3">
+          <span class="fp-icon">🔒</span>
+          <span class="fp-label">Private History</span>
+        </div>
+      </div>
+
+      <!-- SCROLL HINT -->
+      <div class="scroll-hint" id="sHint">
+        <div class="sh-line"></div>
+        <span>scroll</span>
+      </div>
+
+    </section>
+
+    <!-- ══ PANEL 2: FEATURES ══ -->
+    <section class="panel" id="panel2">
+
+      <!-- LEFT COLUMN: heading -->
+      <div class="p2-left">
+        <div class="sec-eyebrow">✦ Features</div>
+        <h2 class="sec-h2">Everything<br><em>you need.</em></h2>
+        <p class="sec-p">Four tools working as one. Nothing extra, nothing missing.</p>
+      </div>
+
+      <!-- RIGHT: 2x2 floating cards -->
+      <div class="p2-right" id="p2Grid">
+        <div class="fcard fc0">
+          <div class="fc-num">01</div>
+          <div class="fc-icon">🗺️</div>
+          <h3>Trip Builder</h3>
+          <p>Day-by-day itineraries with AI suggestions. Drag, drop, share instantly.</p>
+          <span class="fc-tag gold-tag">New</span>
+          <div class="fc-sheen"></div>
+        </div>
+        <div class="fcard fc1">
+          <div class="fc-num">02</div>
+          <div class="fc-icon">💸</div>
+          <h3>Expense Split</h3>
+          <p>Snap receipts, tag payers, settle up with one tap at trip end.</p>
+          <span class="fc-tag teal-tag">Popular</span>
+          <div class="fc-sheen"></div>
+        </div>
+        <div class="fcard fc2">
+          <div class="fc-num">03</div>
+          <div class="fc-icon">📊</div>
+          <h3>Clean Insights</h3>
+          <p>Beautiful spend charts. Compare trips, track categories, save smarter.</p>
+          <div class="fc-sheen"></div>
+        </div>
+        <div class="fcard fc3">
+          <div class="fc-num">04</div>
+          <div class="fc-icon">🔒</div>
+          <h3>Private History</h3>
+          <p>End-to-end encrypted. Your travel data stays yours — always.</p>
+          <div class="fc-sheen"></div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ══ PANEL 3: PRIVATE SPACE ══ -->
+    <section class="panel" id="panel3">
+
+      <div class="p3-wrap" id="p3Wrap">
+        <div class="aurora-border"></div>
+        <div class="lens-sweep"></div>
+
+        <div class="p3-top">
+          <div>
+            <div class="sec-eyebrow">✦ Your Space</div>
+            {% if request.user.is_authenticated %}
+                <h2 class="sec-h2">Account.<br><em>Snapshot.</em></h2>
+            {% else %}
+                <h2 class="sec-h2">Private.<br><em>Yours alone.</em></h2>
+            {% endif %}
+          </div>
+          {% if not request.user.is_authenticated %}
+            <a href="{% url 'login' %}" class="p3-btn" style="text-decoration:none;">Log in to access →</a>
+          {% else %}
+            <a href="{% url 'trip' %}" class="p3-btn" style="text-decoration:none;">Update Stats</a>
+          {% endif %}
+        </div>
+
+        <div class="p3-grid" id="p3Grid">
+          <div class="p3card">
+            <div class="p3c-icon" style="background:rgba(242,107,78,0.12)">🔍</div>
+            <h4>Last Search</h4>
+            {% if last_search %}
+                <p>Pick up where you left off.</p>
+                <div class="p3c-metric">{{ last_search.place }}</div>
+            {% else %}
+                <p>Pick up where you left off.</p>
+                <div class="p3c-metric">Munnar</div>
+            {% endif %}
+          </div>
+          <div class="p3card">
+            <div class="p3c-icon" style="background:rgba(78,205,196,0.12)">💰</div>
+            <h4>Budget Estimate</h4>
+            {% if last_budget %}
+                <p>Based on your last calculation.</p>
+                <div class="p3c-metric">₹{{ last_budget.total|floatformat:0 }}</div>
+            {% else %}
+                <p>No budget calculated yet.</p>
+                <div class="p3c-metric">₹0</div>
+            {% endif %}
+          </div>
+          <div class="p3card">
+            <div class="p3c-icon" style="background:rgba(232,184,75,0.12)">📋</div>
+            <h4>Total Tracked</h4>
+            {% if last_expense %}
+                <p>Your tracked spend.</p>
+                <div class="p3c-metric">₹{{ last_expense.total|floatformat:0 }}</div>
+            {% else %}
+                <p>Join the community.</p>
+                <div class="p3c-metric">₹0</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ══ PANEL 4: BOTTOM TOOLS ══ -->
+    <section class="panel" id="panel4">
+
+      <div class="p4-grid" id="p4Grid">
+
+        <div class="p4card p4-trip" id="p4Trip">
+          <div class="p4-beam p4-beam-gold"></div>
+          <div class="p4-corner"></div>
+          <div class="p4-eyebrow">🗺️ Trip Planner</div>
+          <h2>Build your<br>dream trip.</h2>
+          <p>From weekend getaways to month-long adventures. Smart planning, your style.</p>
+          <a href="{% url 'trip' %}" class="p4-btn p4-btn-gold" style="text-decoration:none;">Plan a Trip →</a>
+          <div class="fc-sheen"></div>
+        </div>
+
+        <div class="p4card p4-exp" id="p4Exp">
+          <div class="p4-beam p4-beam-teal"></div>
+          <div class="p4-corner"></div>
+          <div class="p4-eyebrow p4-teal-eye">💸 Expense Manager</div>
+          <h2>Split costs,<br>stay friends.</h2>
+          <p>No awkward conversations. Fair splits, instant settle-ups, full transparency.</p>
+          <a href="{% url 'expense_overview' %}" class="p4-btn p4-btn-teal" style="text-decoration:none;">Track Expenses →</a>
+          <div class="fc-sheen"></div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ══ FOOTER ══ -->
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-l">
+          <div class="f-logo">Tripp<span>.</span></div>
+          <p class="f-tag">Your next adventure starts here.</p>
+        </div>
+        <ul class="f-links">
+          <li><a href="{% url 'trip' %}">Features</a></li>
+          <li><a href="{% url 'history' %}">History</a></li>
+          <li><a href="{% url 'expense_overview' %}">Expenses</a></li>
+        </ul>
+      </div>
+      <div class="f-copy">© 2025 Tripp. Designed for travelers who value simplicity.</div>
+    </footer>
+
+  </div><!-- /scroller -->
+
+  <script src="{% static 'landing/app.js' %}"></script>
+</body>
+</html>

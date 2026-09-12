@@ -1,0 +1,29 @@
+{% extends "auth_base.html" %}
+
+{% block title %}Register | Trip Planner{% endblock %}
+{% block heading %}Create your account{% endblock %}
+{% block subheading %}Register once so your searches, budgets, and expense history stay private to you.{% endblock %}
+
+{% block content %}
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="non-field-errors">{{ form.non_field_errors }}</div>
+    {% endif %}
+    {% for field in form %}
+      <div class="mb-3">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}
+          <div class="form-text">{{ field.help_text|safe }}</div>
+        {% endif %}
+        {{ field.errors }}
+      </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-accent">Register</button>
+  </form>
+  <div class="helper-links">
+    <a href="{% url 'login' %}">Already have an account? Log in</a>
+    <a href="{% url 'home' %}">Back to home</a>
+  </div>
+{% endblock %}

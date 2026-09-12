@@ -1,0 +1,31 @@
+# Python / Virtual Environments
+.venv/
+.venv312/
+venv/
+ENV/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Databases
+*.sqlite3
+db.sqlite3
+
+# Logs & Temporary Files
+*.log
+runserver_err.log
+runserver_out.log
+debug_output.txt
+
+# Environment variables
+.env
+
+# Large zip archives
+*.zip
+indian-cities-geodata-main.zip
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store

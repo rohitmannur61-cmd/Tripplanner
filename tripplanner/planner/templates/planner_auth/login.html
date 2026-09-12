@@ -1,0 +1,28 @@
+{% extends "auth_base.html" %}
+
+{% block title %}Login | Trip Planner{% endblock %}
+{% block heading %}Log in{% endblock %}
+{% block subheading %}Use your account to open your trip history and manage only your own saved data.{% endblock %}
+
+{% block content %}
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="non-field-errors">{{ form.non_field_errors }}</div>
+    {% endif %}
+    {% for field in form %}
+      <div class="mb-3">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {{ field.errors }}
+      </div>
+    {% endfor %}
+    {% if next %}
+      <input type="hidden" name="next" value="{{ next }}">
+    {% endif %}
+    <button type="submit" class="btn btn-accent">Log in</button>
+  </form>
+  <div class="helper-links">
+    <a href="{% url 'register' %}">Create account</a>
+  </div>
+{% endblock %}

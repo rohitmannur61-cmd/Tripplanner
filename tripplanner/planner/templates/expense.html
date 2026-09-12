@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Advanced Expense Engine — {{ trip.trip_name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <style>
+        :root{
+            --ink:#121417; --muted:#58606a; --accent:#ff6b4a; --accent-2:#1a6f7a;
+            --sun:#f4c15d; --card:rgba(255,255,255,0.95); --glass:rgba(255,255,255,0.7);
+            --ring:rgba(255,107,74,0.35); --radius:24px;
+        }
+        body {
+            background:
+                radial-gradient(1200px 600px at 80% -10%,rgba(255,224,204,0.8),transparent),
+                radial-gradient(900px 500px at -10% 10%,rgba(196,229,242,0.6),transparent),
+                linear-gradient(180deg,#f8f5ef 0%,#eef3f7 55%,#f8f5ef 100%);
+            font-family:"Plus Jakarta Sans",sans-serif; color:var(--ink);
+            min-height: 100vh;
+        }
+        .nav-wrap{position:sticky;top:0;z-index:100;backdrop-filter:blur(14px);background:rgba(255,255,255,0.8);border-bottom:1px solid rgba(18,20,23,0.06);}
+        .brand{font-family:"Fraunces",serif;font-weight:700;letter-spacing:-0.5px;}
+
+        .g-card{border:1px solid rgba(18,20,23,0.06);border-radius:var(--radius);background:var(--card);box-shadow:0 8px 32px rgba(18,20,23,0.08);transition:transform .3s,box-shadow .3s;overflow:hidden;margin-bottom:24px;}
+        .g-card:hover{transform:translateY(-4px);box-shadow:0 16px 48px rgba(18,20,23,0.12);}
+        .g-card-body{padding:1.5rem 2rem;}
+
+        .sec-title{font-family:"Fraunces",serif;font-weight:700;font-size:1.25rem;color:var(--ink);margin-bottom:1.5rem;display:flex;align-items:center;gap:12px;}
+        
+        .metric-card{background:var(--glass);border-radius:20px;padding:20px;border:1px solid rgba(255,107,74,0.1);text-align:center;height:100%;}
+        .metric-val{font-size:1.5rem;font-weight:800;color:var(--accent-2);display:block;margin-bottom:4px;}
+        .metric-lab{font-size:0.75rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:1px;}
+
+        .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:10px;}
+        .cal-day{aspect-ratio:1;border-radius:8px;background:rgba(18,20,23,0.04);display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--muted);position:relative;cursor:pointer;transition:transform .2s, box-shadow .2s;}
+        .cal-day:hover{transform:scale(1.15);box-shadow:0 4px 12px rgba(0,0,0,0.1);}
+        .cal-day.has-spend{background:var(--accent-2);color:#fff;font-weight:700;}
+        .cal-day.has-spend:hover{background:#147d6f;}
+        .cal-day.active{outline:3px solid var(--accent);outline-offset:2px;}
+        .cal-day:hover .cal-tip{display:block;}
+        .cal-tip{display:none;position:absolute;bottom:110%;background:var(--ink);color:#fff;padding:6px 10px;border-radius:6px;white-space:nowrap;z-index:10;font-size:0.75rem;box-shadow:0 4px 12px rgba(0,0,0,0.2);pointer-events:none;}
+
+        /* Calendar Detail Panel */
+        .cal-detail{margin-top:16px;background:rgba(26,111,122,0.04);border:1px solid rgba(26,111,122,0.15);border-radius:16px;padding:16px 20px;display:none;animation:calFadeIn .3s ease;}
+        .cal-detail.show{display:block;}
+        .cal-detail-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+        .cal-detail-date{font-family:"Fraunces",serif;font-weight:700;font-size:1rem;color:var(--accent-2);}
+        .cal-detail-total{font-weight:800;font-size:1.1rem;color:var(--ink);}
+        .cal-detail-item{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#fff;border-radius:10px;margin-bottom:6px;box-shadow:0 1px 4px rgba(0,0,0,0.04);}
+        .cal-detail-item .cdi-left{display:flex;align-items:center;gap:10px;}
+        .cal-detail-item .cdi-cat{font-size:0.65rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;padding:2px 8px;background:rgba(18,20,23,0.05);border-radius:4px;}
+        .cal-detail-item .cdi-desc{font-weight:600;font-size:0.85rem;}
+        .cal-detail-item .cdi-payer{font-size:0.7rem;color:var(--muted);}
+        .cal-detail-item .cdi-amt{font-weight:800;font-size:0.9rem;color:var(--accent);}
+        .cal-detail-close{background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--muted);padding:0;line-height:1;}
+        .cal-detail-close:hover{color:var(--ink);}
+        .cal-no-expense{text-align:center;padding:12px;color:var(--muted);font-size:0.8rem;}
+        @keyframes calFadeIn{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
+
+        .anomaly-badge{background:rgba(207,58,58,0.1);color:#cf3a3a;padding:4px 8px;border-radius:6px;font-size:0.65rem;font-weight:700;margin-top:4px;display:inline-block;}
+        
+        .floating-add{position:fixed;bottom:30px;right:30px;width:64px;height:64px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:2rem;box-shadow:0 12px 32px rgba(255,107,74,0.4);border:none;z-index:1000;transition:transform .3s, rotate .3s;}
+        .floating-add:hover{transform:scale(1.1) rotate(90deg);color:#fff;}
+
+        .suggestion-box{background:linear-gradient(135deg,rgba(26,111,122,0.05),rgba(244,193,93,0.05));border-radius:18px;padding:20px;border:1px dashed var(--sun);}
+        
+        .receipt-thumb{width:42px;height:42px;border-radius:10px;object-fit:cover;cursor:pointer;transition:transform .3s cubic-bezier(0.175, 0.885, 0.32, 1.275);border:2px solid #fff;box-shadow:0 4px 8px rgba(0,0,0,0.1);}
+        .receipt-thumb:hover{transform:scale(3.5);z-index:100;}
+
+        .currency-toggle{background:rgba(18,20,23,0.05);border-radius:10px;padding:4px;display:inline-flex;gap:4px;}
+        .currency-btn{border:none;background:transparent;padding:4px 12px;border-radius:7px;font-size:0.75rem;font-weight:700;color:var(--muted);transition:all .2s;}
+        .currency-btn.active{background:#fff;color:var(--ink);box-shadow:0 2px 6px rgba(0,0,0,0.1);}
+
+        @keyframes slideIn{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}
+        .slide-in{animation:slideIn .5s ease both;}
+    </style>
+</head>
+<body>
+
+
+<nav class="nav-wrap py-3">
+    <div class="container d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-3">
+            <div class="brand h4 m-0">TripPlanner <span style="font-weight:300;color:var(--muted)">Pro</span></div>
+            <!-- Trip Switcher -->
+            <div class="dropdown">
+                <button class="btn btn-sm rounded-pill px-3 dropdown-toggle" style="background:rgba(26,111,122,0.1);color:var(--accent-2);border:1px solid rgba(26,111,122,0.2);font-size:0.8rem;font-weight:600;" type="button" data-bs-toggle="dropdown">
+                    📁 {{ trip.trip_name }}
+                </button>
+                <ul class="dropdown-menu shadow-lg border-0 rounded-4 py-2" style="min-width:220px;font-size:0.85rem;">
+                    <li><span class="dropdown-header text-muted" style="font-size:0.7rem;letter-spacing:1px;">SWITCH TRIP</span></li>
+                    {% for t in all_trips %}
+                    <li>
+                        <a class="dropdown-item rounded-3 mx-1 px-3 py-2 d-flex justify-content-between align-items-center {% if t.id == trip.id %}fw-bold{% endif %}" href="{% url 'expense' t.id %}" style="{% if t.id == trip.id %}background:rgba(26,111,122,0.08);color:var(--accent-2);{% endif %}">
+                            <span>{{ t.trip_name }}</span>
+                            {% if t.id == trip.id %}<span style="font-size:0.65rem;background:#1a6f7a;color:#fff;padding:2px 6px;border-radius:4px;">Current</span>{% endif %}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            <div class="currency-toggle me-2">
+                <button class="currency-btn active" id="btnINR" onclick="setCurrency('INR')">₹ INR</button>
+                <button class="currency-btn" id="btnUSD" onclick="setCurrency('USD')">$ USD</button>
+            </div>
+            <a href="{% url 'home' %}" class="btn btn-dark btn-sm rounded-pill px-3">Home</a>
+            <a href="{% url 'logout' %}" class="btn btn-outline-danger btn-sm rounded-pill px-3">Logout</a>
+        </div>
+    </div>
+</nav>
+
+
+<div class="container py-5">
+    <!-- ═══ MAIN DASHBOARD ═══ -->
+    <div class="row g-4">
+        <!-- LEFT: Insights & Lists -->
+        <div class="col-lg-8">
+
+            <!-- Budget Comparison & Heatmap -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-7">
+                    <div class="g-card h-100">
+                        <div class="g-card-body">
+                            <h6 class="sec-title"><span class="icon">⚖️</span> Budget vs Actual</h6>
+                            <canvas id="budgetActualChart" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-5">
+                    <div class="g-card h-100">
+                        <div class="g-card-body">
+                            <h6 class="sec-title"><span class="icon">📅</span> Spend Calendar</h6>
+                            <p class="text-muted" style="font-size:0.72rem;margin-bottom:8px;">Click a date to see expenses</p>
+                            <div class="cal-grid" id="expenseCal"></div>
+                            <!-- Date Detail Panel (shown on click) -->
+                            <div class="cal-detail" id="calDetail">
+                                <div class="cal-detail-header">
+                                    <span class="cal-detail-date" id="calDetailDate"></span>
+                                    <div class="d-flex align-items-center gap-3">
+                                        <span class="cal-detail-total" id="calDetailTotal"></span>
+                                        <button class="cal-detail-close" onclick="closeCalDetail()" title="Close">✕</button>
+                                    </div>
+                                </div>
+                                <div id="calDetailItems"></div>
+                            </div>
+                            <div class="mt-4 suggestion-box">
+                                <h6 class="small fw-bold mb-2">💡 Smart Suggestions</h6>
+                                <ul class="small mb-0 ps-3">
+                                    {% for s in suggestions %}<li>{{ s }}</li>{% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Expense Timeline -->
+            <div class="g-card">
+                <div class="g-card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h6 class="sec-title m-0"><span class="icon">📜</span> Expense Timeline</h6>
+                        <a href="{% url 'export_expenses' trip.id %}" class="btn btn-outline-dark btn-sm rounded-pill px-3">Download CSV</a>
+                    </div>
+                    {% if expenses %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr style="font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; color:var(--muted);">
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Payer</th>
+                                    <th>Receipt</th>
+                                    <th class="text-end">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for exp in expenses %}
+                                <tr>
+                                    <td class="small text-muted">{{ exp.created_at|date:"d M" }}</td>
+                                    <td>
+                                        <div class="fw-bold">{{ exp.description }}</div>
+                                        <div class="d-flex gap-2 align-items-center">
+                                            <span class="badge rounded-pill bg-light text-dark border" style="font-size:10px;">{{ exp.category }}</span>
+                                            {% if exp.id in anomalies %}<span class="anomaly-badge">⚠️ Anomaly Detected</span>{% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="small fw-semibold">{{ exp.paid_by.name }}</div>
+                                        <div class="text-muted" style="font-size:9px;">
+                                            Split with: 
+                                            {% if exp.members_involved.all %}
+                                                {% for m in exp.members_involved.all %}{{ m.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                                            {% else %}
+                                                Everyone
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>{% if exp.receipt_image %}<img src="{{ exp.receipt_image.url }}" class="receipt-thumb" alt="Receipt">{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                                    <td class="text-end fw-bold">
+                                        <div class="price-val" data-amt="{{ exp.amount }}">₹{{ exp.amount|floatformat:2 }}</div>
+                                        <form method="POST" action="{% url 'delete_expense' trip.id exp.id %}" onsubmit="return confirm('Delete this expense?');" style="display:inline;">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-link p-0 text-danger text-decoration-none" style="font-size:10px;">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                        <div class="text-center py-5 text-muted">No adventures recorded yet!</div>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+
+        <!-- RIGHT: Split Controls -->
+        <div class="col-lg-4">
+            
+            <div class="position-sticky" style="top:100px;">
+                <!-- Split & Settle -->
+                <div class="g-card">
+                    <div class="g-card-body">
+                        <h6 class="sec-title"><span class="icon">🤝</span> Group Settlement</h6>
+                        {% for name, bal in net_balances.items %}
+                        <div class="p-3 mb-2 rounded-4 d-flex justify-content-between align-items-center {% if bal > 0 %}bg-success-subtle text-success-emphasis{% elif bal < 0 %}bg-danger-subtle text-danger-emphasis{% else %}bg-light text-muted{% endif %}">
+                            <span class="fw-bold">{{ name }}</span>
+                            <span class="small fw-bold price-val" data-amt="{{ bal|stringformat:'f' }}">
+                                {% if bal > 0 %}Owed +₹{{ bal|floatformat:0 }}{% elif bal < 0 %}Owes -₹{{ bal|floatformat:0|slice:"1:" }}{% else %}Settled{% endif %}
+                            </span>
+                        </div>
+                        {% endfor %}
+
+                        <div class="mt-4 p-3 bg-light rounded-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="small fw-bold m-0">Settlement Steps</h6>
+                                <button class="btn btn-accent btn-sm rounded-pill" style="font-size:10px;" data-bs-toggle="modal" data-bs-target="#recordPaymentModal">Record Payment</button>
+                            </div>
+                            {% if settlements %}
+                                {% for s in settlements %}
+                                <div class="p-2 mb-2 bg-white rounded-3 shadow-sm d-flex justify-content-between align-items-center" style="font-size:0.8rem;">
+                                    <div><span class="text-primary me-2">➜</span> {{ s.payer_name }} pays <span class="fw-bold price-val" data-amt="{{ s.amount|stringformat:"f" }}">₹{{ s.amount|floatformat:0 }}</span> to {{ s.payee_name }}</div>
+                                    <button class="btn btn-outline-success btn-sm rounded-pill py-0 px-2" style="font-size:10px;" onclick="openQuickSettle('{{ s.payer_id }}', '{{ s.payee_id }}', '{{ s.amount|stringformat:"f" }}')">Settle</button>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-center py-2 text-muted small">Everyone is even! 🎉</div>
+                            {% endif %}
+                        </div>
+
+                        {% if settlement_records %}
+                        <div class="mt-3">
+                            <button class="btn btn-link btn-sm w-100 text-muted text-decoration-none" style="font-size:10px;" type="button" data-bs-toggle="collapse" data-bs-target="#paymentHistory">
+                                📅 View Payment History ({{ settlement_records|length }})
+                            </button>
+                            <div class="collapse mt-2" id="paymentHistory">
+                                {% for p in settlement_records %}
+                                <div class="p-2 mb-1 bg-light border-start border-success border-3 rounded-2" style="font-size:0.75rem;">
+                                    <div class="d-flex justify-content-between">
+                                        <span><span class="fw-bold">{{ p.payer.name }}</span> paid <span class="fw-bold">{{ p.payee.name }}</span></span>
+                                        <form method="POST" action="{% url 'delete_settlement' trip.id p.id %}" onsubmit="return confirm('Remove this payment record?');">
+                                            {% csrf_token %}<button type="submit" class="btn btn-link p-0 text-danger text-decoration-none" style="font-size:9px;">✕</button>
+                                        </form>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span class="text-success fw-bold price-val" data-amt="{{ p.amount }}">₹{{ p.amount|floatformat:0 }}</span>
+                                        <span class="text-muted" style="font-size:9px;">{{ p.created_at|date:"d M" }}</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Active Members -->
+                <div class="g-card">
+                    <div class="g-card-body">
+                        <h6 class="sec-title show-sm"><span class="icon">👥</span> Members ({{ members|length }})</h6>
+                        <form method="POST" class="mb-3">
+                            {% csrf_token %}<input type="hidden" name="form_type" value="member">
+                            <div class="input-group">
+                                <input type="text" name="member_name" class="form-control" placeholder="New member..." required>
+                                <button class="btn btn-dark">Add</button>
+                            </div>
+                        </form>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for m in members %}
+                            <span class="badge bg-white text-dark border px-2 py-2 rounded-pill fw-semibold d-flex align-items-center gap-1">
+                                {{ m.name }}
+                                <form method="POST" action="{% url 'delete_member' trip.id m.id %}" onsubmit="return confirm('Remove member? All their linked expenses will remain but credits may shift.');" style="display:inline;">
+                                    {% csrf_token %}<button type="submit" class="btn btn-link p-0 text-muted text-decoration-none" style="font-size:10px; line-height:1;">✕</button>
+                                </form>
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Floating Action Button -->
+<button class="floating-add" data-bs-toggle="modal" data-bs-target="#addExpenseModal">+</button>
+
+<!-- Add Expense Modal -->
+<div class="modal fade" id="addExpenseModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0" style="border-radius:28px;">
+            <div class="modal-body p-4">
+                <h5 class="sec-title mb-4">New Expense Record</h5>
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}<input type="hidden" name="form_type" value="expense">
+                    <div class="mb-3">
+                        <input type="text" name="description" class="form-control" placeholder="What was it for?" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-8"><input type="number" name="amount" class="form-control" placeholder="Amount" step="0.01" required></div>
+                        <div class="col-4">
+                            <select name="category" class="form-select">
+                                {% for cat in categories %}<option value="{{cat}}">{{cat}}</option>{% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small fw-bold mb-1 text-muted">Paid By</label>
+                        <select name="paid_by" class="form-select" required>
+                            {% for m in members %}<option value="{{m.id}}">{{m.name}}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small fw-bold mb-1 text-muted">Split Among (Multiple)</label>
+                        <select name="members_involved" class="form-select" multiple style="height:100px;">
+                            {% for m in members %}<option value="{{m.id}}" selected>{{m.name}}</option>{% endfor %}
+                        </select>
+                        <div class="form-text mt-1" style="font-size:10px;">Hold Ctrl/Cmd to select multiple. Default is everyone.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small fw-bold mb-1 text-muted">Receipt Photo</label>
+                        <input type="file" name="receipt_image" class="form-control" accept="image/*">
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-light w-100 rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-accent w-100 rounded-pill">Record Expense</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Record Payment Modal -->
+<div class="modal fade" id="recordPaymentModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0" style="border-radius:28px;">
+            <div class="modal-body p-4">
+                <h5 class="sec-title mb-4">Record a Payment</h5>
+                <form method="POST">
+                    {% csrf_token %}<input type="hidden" name="form_type" value="settlement">
+                    <div class="mb-3">
+                        <label class="small fw-bold mb-1 text-muted">Who Paid?</label>
+                        <select name="payer" id="settlePayer" class="form-select" required>
+                            <option value="">Select members...</option>
+                            {% for m in members %}<option value="{{m.id}}">{{m.name}}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small fw-bold mb-1 text-muted">To Whom?</label>
+                        <select name="payee" id="settlePayee" class="form-select" required>
+                            <option value="">Select payee...</option>
+                            {% for m in members %}<option value="{{m.id}}">{{m.name}}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <input type="number" name="amount" id="settleAmount" class="form-control" placeholder="Amount Paid" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <input type="text" name="note" id="settleNote" class="form-control" placeholder="Optional note (e.g. GPay, Cash)">
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-light w-100 rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-accent w-100 rounded-pill">Settle Up</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // ── DATA BRIDGE (server-rendered JSON) ──
+    const compData    = {{ comparison|safe }};
+    const calData     = {{ calendar_data|safe }};
+    const calDetails  = {{ calendar_detail_data|safe }};
+
+    // ── COLORS ──
+    const colors = ['#1a6f7a','#ff6b4a','#f4c15d','#5c5c5c','#4a90e2','#7ed321','#e91e8c','#ff9800'];
+
+    document.addEventListener('DOMContentLoaded', function () {
+
+        // Guard: if Chart.js failed to load show a warning
+        if (typeof Chart === 'undefined') {
+            document.querySelectorAll('canvas').forEach(c => {
+                const w = document.createElement('p');
+                w.style.cssText = 'color:red;font-size:12px;padding:8px;';
+                w.textContent = 'Chart.js failed to load. Check your internet connection and refresh.';
+                c.parentNode.replaceChild(w, c);
+            });
+            return;
+        }
+
+        // ── 1: Budget vs Actual (Horizontal Bar) ──
+        const budgetCanvas = document.getElementById('budgetActualChart');
+        if (compData && compData.length > 0) {
+            try {
+                new Chart(budgetCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: compData.map(d => d.cat),
+                        datasets: [
+                            {
+                                label: 'Planned Budget',
+                                data: compData.map(d => d.planned),
+                                backgroundColor: 'rgba(26,111,122,0.35)',
+                                borderColor: '#1a6f7a',
+                                borderWidth: 2,
+                                borderRadius: 6,
+                                barPercentage: 0.7,
+                                categoryPercentage: 0.7
+                            },
+                            {
+                                label: 'Actual Spent',
+                                data: compData.map(d => d.actual),
+                                backgroundColor: '#ff6b4a',
+                                borderColor: '#e55a3a',
+                                borderWidth: 2,
+                                borderRadius: 6,
+                                barPercentage: 0.7,
+                                categoryPercentage: 0.7
+                            }
+                        ]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    padding: 20,
+                                    usePointStyle: true,
+                                    pointStyle: 'rectRounded',
+                                    font: { size: 12, weight: '600' }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: '#121417',
+                                titleFont: { weight: '700' },
+                                bodyFont: { size: 13 },
+                                padding: 12,
+                                cornerRadius: 10,
+                                callbacks: {
+                                    label: function(ctx) {
+                                        return ' ' + ctx.dataset.label + ': ₹' + ctx.parsed.x.toLocaleString();
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(0,0,0,0.04)' },
+                                ticks: {
+                                    callback: v => '₹' + v.toLocaleString(),
+                                    font: { size: 11 }
+                                }
+                            },
+                            y: {
+                                grid: { display: false },
+                                ticks: { font: { size: 12, weight: '600' } }
+                            }
+                        }
+                    }
+                });
+            } catch(err) { console.error('Budget chart error:', err); }
+        } else {
+            budgetCanvas.style.display = 'none';
+            const el = document.createElement('div');
+            el.style.cssText = 'text-align:center;padding:40px 10px;color:var(--muted);font-size:0.82rem;';
+            el.innerHTML = '<div style="font-size:2rem">📊</div>No budget plan found.<br><small>Use <b>Plan New Journey</b> to add a budget.</small>';
+            budgetCanvas.parentNode.appendChild(el);
+        }
+
+        // ── 2: Spend Calendar Heatmap (with click-to-view) ──
+        // Helper: format Date to local YYYY-MM-DD (avoids UTC timezone shift)
+        function toLocalISO(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return y + '-' + m + '-' + d;
+        }
+
+        const calGrid = document.getElementById('expenseCal');
+        const spendMap = {};
+        calData.forEach(x => { spendMap[x.date] = x.total; });
+
+        const todayD = new Date();
+        todayD.setHours(0, 0, 0, 0);
+        let startDate;
+        if (calData.length > 0) {
+            const dates = calData.map(x => {
+                const parts = x.date.split('-');
+                return new Date(parts[0], parts[1] - 1, parts[2]);
+            });
+            const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
+            const ago28 = new Date(todayD); ago28.setDate(todayD.getDate() - 27);
+            startDate = minDate < ago28 ? minDate : ago28;
+        } else {
+            startDate = new Date(todayD); startDate.setDate(todayD.getDate() - 27);
+        }
+        const cur = new Date(startDate);
+        while (cur <= todayD) {
+            const iso   = toLocalISO(cur);
+            const spend = spendMap[iso];
+            const cell  = document.createElement('div');
+            cell.className = 'cal-day' + (spend ? ' has-spend' : '');
+            cell.textContent = cur.getDate();
+            cell.dataset.date = iso;
+            if (spend) {
+                const tip = document.createElement('div');
+                tip.className = 'cal-tip';
+                tip.textContent = '₹' + spend.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' — click for details';
+                cell.appendChild(tip);
+            }
+            cell.addEventListener('click', function() { showCalDetail(this.dataset.date); });
+            calGrid.appendChild(cell);
+            cur.setDate(cur.getDate() + 1);
+        }
+
+    }); // end DOMContentLoaded
+
+    // ── Currency Switcher (global scope — used by onclick) ──
+    const exchangeRate = 83.5;
+    function setCurrency(cur) {
+        const sym = cur === 'INR' ? '₹' : '$';
+        document.querySelectorAll('.price-val').forEach(el => {
+            const amt = parseFloat(el.dataset.amt);
+            if (isNaN(amt)) return;
+            const val = cur === 'INR' ? amt : amt / exchangeRate;
+            el.textContent = sym + val.toLocaleString(undefined, { maximumFractionDigits: val > 100 ? 0 : 2 });
+        });
+        document.querySelectorAll('.currency-btn').forEach(b => b.classList.remove('active'));
+        const btn = document.getElementById('btn' + cur);
+        if (btn) btn.classList.add('active');
+    }
+
+    // ── Calendar Click-to-View ──
+    function showCalDetail(dateStr) {
+        const panel   = document.getElementById('calDetail');
+        const dateEl  = document.getElementById('calDetailDate');
+        const totalEl = document.getElementById('calDetailTotal');
+        const itemsEl = document.getElementById('calDetailItems');
+
+        // Highlight active day
+        document.querySelectorAll('.cal-day').forEach(d => d.classList.remove('active'));
+        const activeDay = document.querySelector(`.cal-day[data-date="${dateStr}"]`);
+        if (activeDay) activeDay.classList.add('active');
+
+        // Format the date nicely
+        const d = new Date(dateStr + 'T00:00:00');
+        const opts = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+        dateEl.textContent = d.toLocaleDateString('en-IN', opts);
+
+        const items = calDetails[dateStr];
+        itemsEl.innerHTML = '';
+
+        if (items && items.length > 0) {
+            const dayTotal = items.reduce((s, i) => s + i.amount, 0);
+            totalEl.textContent = '₹' + dayTotal.toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+            items.forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'cal-detail-item';
+                row.innerHTML = `
+                    <div class="cdi-left">
+                        <span class="cdi-cat">${item.category}</span>
+                        <div>
+                            <div class="cdi-desc">${item.desc}</div>
+                            <div class="cdi-payer">by ${item.paid_by}</div>
+                        </div>
+                    </div>
+                    <span class="cdi-amt">₹${item.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                `;
+                itemsEl.appendChild(row);
+            });
+        } else {
+            totalEl.textContent = '₹0';
+            itemsEl.innerHTML = '<div class="cal-no-expense">No expenses on this date</div>';
+        }
+
+        // Show panel with animation
+        panel.classList.remove('show');
+        void panel.offsetWidth; // force reflow for animation restart
+        panel.classList.add('show');
+        panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function closeCalDetail() {
+        document.getElementById('calDetail').classList.remove('show');
+        document.querySelectorAll('.cal-day').forEach(d => d.classList.remove('active'));
+    }
+
+    // ── Quick Settle (global scope — used by onclick) ──
+    function openQuickSettle(payerId, payeeId, amount) {
+        const el = document.getElementById('recordPaymentModal');
+        if (!el) return;
+        const modal = bootstrap.Modal.getOrCreateInstance(el);
+        document.getElementById('settlePayer').value  = payerId;
+        document.getElementById('settlePayee').value  = payeeId;
+        document.getElementById('settleAmount').value = amount;
+        document.getElementById('settleNote').value   = 'Full settlement of debt';
+        modal.show();
+    }
+</script>
+
+</body>
+</html>

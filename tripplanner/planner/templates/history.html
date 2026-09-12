@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>History</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --ink: #121417;
+      --muted: #58606a;
+      --accent: #ff6b4a;
+      --accent-2: #1a6f7a;
+      --card: rgba(255,255,255,0.9);
+      --glass: rgba(255,255,255,0.68);
+    }
+
+    body{
+      font-family: "Plus Jakarta Sans", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 600px at 85% -10%, rgba(255, 224, 204, 0.72), transparent),
+        radial-gradient(900px 500px at -10% 10%, rgba(196, 229, 242, 0.58), transparent),
+        linear-gradient(180deg, #f8f5ef 0%, #eef3f7 55%, #f8f5ef 100%);
+      min-height: 100vh;
+    }
+
+    .nav-wrap{
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(10px);
+      background: rgba(255,255,255,0.78);
+      border-bottom: 1px solid rgba(18,20,23,0.08);
+    }
+
+    .brand{
+      font-family: "Fraunces", serif;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .page-wrap{
+      padding: 44px 0 72px;
+    }
+
+    .hero-card,
+    .section-card,
+    .history-card{
+      background: var(--card);
+      border: 1px solid rgba(18,20,23,0.08);
+      border-radius: 24px;
+      box-shadow: 0 18px 38px rgba(18,20,23,0.12);
+    }
+
+    .hero-card{
+      padding: 28px;
+      margin-bottom: 28px;
+    }
+
+    .pill{
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(26,111,122,0.12);
+      color: var(--accent-2);
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .hero-title,
+    .section-title{
+      font-family: "Fraunces", serif;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .hero-title{
+      font-size: clamp(2rem, 2.2vw + 1rem, 3rem);
+      margin: 12px 0 10px;
+    }
+
+    .hero-sub{
+      color: var(--muted);
+      margin: 0;
+    }
+
+    .metrics{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .metric{
+      background: var(--glass);
+      border: 1px solid rgba(18,20,23,0.08);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .metric-label{
+      color: var(--muted);
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+
+    .metric-value{
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-top: 6px;
+    }
+
+    .section-card{
+      padding: 26px;
+      margin-bottom: 24px;
+    }
+
+    .section-top{
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .section-actions{
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .section-sub{
+      color: var(--muted);
+      margin: 6px 0 0;
+    }
+
+    .history-grid{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+
+    .history-card{
+      padding: 20px;
+      height: 100%;
+    }
+
+    .card-actions{
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .meta{
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .empty-state{
+      background: rgba(255,255,255,0.6);
+      border: 1px dashed rgba(18,20,23,0.18);
+      border-radius: 18px;
+      padding: 22px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .trip-card{
+      padding: 22px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.78);
+      border: 1px solid rgba(18,20,23,0.08);
+      margin-bottom: 18px;
+    }
+
+    .trip-stats{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+      margin: 16px 0 18px;
+    }
+
+    .trip-stat{
+      background: var(--glass);
+      border: 1px solid rgba(18,20,23,0.08);
+      border-radius: 16px;
+      padding: 12px 14px;
+    }
+
+    .list-shell{
+      background: rgba(255,255,255,0.55);
+      border: 1px solid rgba(18,20,23,0.08);
+      border-radius: 18px;
+      padding: 16px;
+      margin-top: 14px;
+    }
+
+    .record{
+      padding: 14px 0;
+      border-bottom: 1px solid rgba(18,20,23,0.08);
+    }
+
+    .record:last-child{
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .record:first-child{
+      padding-top: 0;
+    }
+
+    .record-actions{
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
+
+    .member-badges{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .member-badge{
+      border-radius: 999px;
+      padding: 6px 12px;
+      background: rgba(26,111,122,0.1);
+      color: var(--accent-2);
+      font-weight: 600;
+      font-size: 0.88rem;
+    }
+
+    @media (max-width: 768px){
+      .section-top{
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav-wrap py-3">
+    <div class="container d-flex align-items-center justify-content-between">
+      <div class="brand h4 m-0">Trip Planner</div>
+      <div class="d-flex gap-2 flex-wrap align-items-center">
+        <span class="pill">{{ request.user.username }}</span>
+        <a href="{% url 'home' %}" class="btn btn-dark btn-sm">Home</a>
+        <a href="{% url 'trip' %}" class="btn btn-outline-dark btn-sm">Plan Trip</a>
+        <a href="{% url 'expense_overview' %}" class="btn btn-outline-dark btn-sm">Expenses</a>
+        <a href="{% url 'history' %}" class="btn btn-outline-dark btn-sm">History</a>
+        <a href="{% url 'logout' %}" class="btn btn-outline-dark btn-sm">Logout</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-wrap">
+    <div class="container">
+      <section class="hero-card">
+        <div class="pill">
+          <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block;"></span>
+          Private account history
+        </div>
+        <h1 class="hero-title">{{ request.user.username }}'s saved history</h1>
+        <p class="hero-sub">
+          This page shows only the place searches, budget calculations, and expense manager records saved under your account.
+        </p>
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-label">Searches</div>
+            <div class="metric-value">{{ history_counts.searches }}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Budgets</div>
+            <div class="metric-value">{{ history_counts.budgets }}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Trips</div>
+            <div class="metric-value">{{ history_counts.trips }}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Expenses</div>
+            <div class="metric-value">{{ history_counts.expense_entries }}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Payments</div>
+            <div class="metric-value">{{ history_counts.settlement_entries }}</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-card">
+        <div class="section-top">
+          <div>
+            <h2 class="section-title mb-0">Place Search History</h2>
+            <p class="section-sub">Every destination query saved by your account.</p>
+          </div>
+          {% if searches %}
+            <form method="POST" action="{% url 'clear_search_history' %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete all place search history?');">Delete All</button>
+            </form>
+          {% endif %}
+        </div>
+
+        {% if searches %}
+          <div class="history-grid">
+            {% for search in searches %}
+              <article class="history-card">
+                <div class="d-flex justify-content-between gap-3">
+                  <div>
+                    <h3 class="h5 mb-1">{{ search.place }}</h3>
+                    <div class="meta">Query: {{ search.raw_query }}</div>
+                  </div>
+                  <div class="meta text-end">{{ search.created_at|date:"M d, Y H:i" }}</div>
+                </div>
+                <p class="mt-3 mb-3">{{ search.desc|truncatechars:180 }}</p>
+                <div class="card-actions">
+                  <a href="{% url 'create_trip' %}?place={{ search.place|urlencode }}" class="btn btn-outline-dark btn-sm">Plan this trip</a>
+                  <form method="POST" action="{% url 'delete_search_history' search.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete this search history item?');">Delete</button>
+                  </form>
+                </div>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state">No place searches have been saved yet.</div>
+        {% endif %}
+      </section>
+
+      <section class="section-card">
+        <div class="section-top">
+          <div>
+            <h2 class="section-title mb-0">Budget History</h2>
+            <p class="section-sub">Trip budget calculations created while signed in as you.</p>
+          </div>
+          {% if budgets %}
+            <form method="POST" action="{% url 'clear_budget_history' %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete all budget history?');">Delete All</button>
+            </form>
+          {% endif %}
+        </div>
+
+        {% if budgets %}
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Place</th>
+                  <th>People</th>
+                  <th>Days</th>
+                  <th>Total</th>
+                  <th>Per Person</th>
+                  <th>Created</th>
+                  <th class="text-end">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for budget in budgets %}
+                  <tr>
+                    <td>
+                      <div class="fw-semibold">{{ budget.place|default:"Trip Budget" }}</div>
+                      <div class="meta">Base &#8377; {{ budget.base_total|floatformat:2 }} | Contingency &#8377; {{ budget.contingency|floatformat:2 }}</div>
+                    </td>
+                    <td>{{ budget.people }}</td>
+                    <td>{{ budget.days }}</td>
+                    <td>&#8377; {{ budget.total|floatformat:2 }}</td>
+                    <td>&#8377; {{ budget.per_person|floatformat:2 }}</td>
+                    <td>{{ budget.created_at|date:"M d, Y H:i" }}</td>
+                    <td class="text-end">
+                      <form method="POST" action="{% url 'delete_budget_history' budget.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete this budget history item?');">Delete</button>
+                      </form>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">No budget calculations have been saved yet.</div>
+        {% endif %}
+      </section>
+
+      <section class="section-card">
+        <div class="section-top">
+          <div>
+            <h2 class="section-title mb-0">Expense Manager History</h2>
+            <p class="section-sub">Trips, members, expenses, and payment records that belong to your account.</p>
+          </div>
+          {% if trip_history %}
+            <form method="POST" action="{% url 'clear_trip_history' %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete all trip history? This will also remove members, expenses, and payments.');">Delete All</button>
+            </form>
+          {% endif %}
+        </div>
+
+        {% if trip_history %}
+          {% for item in trip_history %}
+            <article class="trip-card">
+              <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                <div>
+                  <h3 class="h4 mb-1">{{ item.trip.trip_name }}</h3>
+                  <div class="meta">Trip ID {{ item.trip.id }}</div>
+                </div>
+                <div class="section-actions">
+                  <a href="{% url 'expense' item.trip.id %}" class="btn btn-outline-dark btn-sm">Open expenses</a>
+                  <form method="POST" action="{% url 'delete_trip_history' item.trip.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete trip {{ item.trip.trip_name }} and all its members, expenses, and payments?');">Delete Trip</button>
+                  </form>
+                </div>
+              </div>
+
+              <div class="trip-stats">
+                <div class="trip-stat">
+                  <div class="metric-label">Members</div>
+                  <div class="fw-bold">{{ item.member_count }}</div>
+                </div>
+                <div class="trip-stat">
+                  <div class="metric-label">Expenses</div>
+                  <div class="fw-bold">{{ item.expense_count }}</div>
+                </div>
+                <div class="trip-stat">
+                  <div class="metric-label">Payments</div>
+                  <div class="fw-bold">{{ item.settlement_count }}</div>
+                </div>
+                <div class="trip-stat">
+                  <div class="metric-label">Total Spend</div>
+                  <div class="fw-bold">&#8377; {{ item.total_amount|floatformat:2 }}</div>
+                </div>
+              </div>
+
+              {% if item.members %}
+                <div class="member-badges">
+                  {% for member in item.members %}
+                    <span class="member-badge">{{ member.name }}</span>
+                  {% endfor %}
+                </div>
+              {% endif %}
+
+              <div class="row g-3 mt-1">
+                <div class="col-lg-7">
+                  <div class="list-shell">
+                    <div class="fw-semibold mb-3">Expenses</div>
+                    {% if item.expenses %}
+                      {% for expense in item.expenses %}
+                        <div class="record">
+                          <div class="d-flex justify-content-between gap-3">
+                            <div>
+                              <div class="fw-semibold">{{ expense.description }}</div>
+                              <div class="meta">Paid by {{ expense.paid_by.name }}</div>
+                              <div class="meta">
+                                For:
+                                {% if expense.members_involved.exists %}
+                                  {% for member in expense.members_involved.all %}
+                                    {{ member.name }}{% if not forloop.last %}, {% endif %}
+                                  {% endfor %}
+                                {% else %}
+                                  All members
+                                {% endif %}
+                              </div>
+                            </div>
+                            <div class="text-end">
+                              <div class="fw-semibold">&#8377; {{ expense.amount|floatformat:2 }}</div>
+                              <div class="meta">{{ expense.created_at|date:"M d, Y H:i" }}</div>
+                            </div>
+                          </div>
+                          <div class="record-actions">
+                            <form method="POST" action="{% url 'delete_expense' item.trip.id expense.id %}">
+                              {% csrf_token %}
+                              <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete expense {{ expense.description }}?');">Delete</button>
+                            </form>
+                          </div>
+                        </div>
+                      {% endfor %}
+                    {% else %}
+                      <div class="meta">No expenses saved for this trip yet.</div>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="col-lg-5">
+                  <div class="list-shell">
+                    <div class="fw-semibold mb-3">Payments</div>
+                    {% if item.settlements %}
+                      {% for settlement in item.settlements %}
+                        <div class="record">
+                          <div class="fw-semibold">{{ settlement.payer.name }} paid {{ settlement.payee.name }}</div>
+                          <div class="meta">&#8377; {{ settlement.amount|floatformat:2 }} | {{ settlement.created_at|date:"M d, Y H:i" }}</div>
+                          {% if settlement.note %}
+                            <div class="meta">{{ settlement.note }}</div>
+                          {% endif %}
+                          <div class="record-actions">
+                            <form method="POST" action="{% url 'delete_settlement' item.trip.id settlement.id %}">
+                              {% csrf_token %}
+                              <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete this payment record?');">Delete</button>
+                            </form>
+                          </div>
+                        </div>
+                      {% endfor %}
+                    {% else %}
+                      <div class="meta">No payments recorded for this trip yet.</div>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </article>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">No expense-manager trips have been saved yet.</div>
+        {% endif %}
+      </section>
+    </div>
+  </main>
+</body>
+</html>

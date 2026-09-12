@@ -480,13 +480,14 @@ body{
       let htmlString = "";
       hotels.forEach((h, idx) => {
          const name = h.name || "Unknown Hotel";
-         // format rating properly (1 decimal)
          const rawRating = h.reviews ? h.reviews.rating : 0;
          const rating = rawRating ? parseFloat(rawRating).toFixed(1) : "New";
          const count = h.reviews ? h.reviews.count : 0;
          const price = h.price1 || h.price2 || h.price3 || "N/A";
          const vendor = h.vendor1 || h.vendor2 || h.vendor3 || "OTA";
          const numIdx = String(idx + 1).padStart(2, '0');
+         const addressHtml = h.address ? `<div class="small text-muted mt-1" style="font-size:0.75rem;">📍 ${h.address}</div>` : '';
+         const mapsLinkHtml = h.maps_url ? `<a href="${h.maps_url}" target="_blank" rel="noopener" class="badge mt-2 text-decoration-none" style="background:rgba(26,111,122,0.1); color:var(--accent-2); font-size:0.7rem; font-weight:700;">🗺️ View on Google Maps</a>` : '';
 
          htmlString += `
            <div class="p-3 shadow-sm" style="background:#fff; border-radius:14px; border:1px solid rgba(0,0,0,0.05); transition:transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,0.08)';" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 .125rem .25rem rgba(0,0,0,.075)';">
@@ -496,9 +497,11 @@ body{
                     <span style="font-size:0.7rem; font-weight:800; color:#fff; background:var(--ink); padding:2px 6px; border-radius:6px;">#${numIdx}</span>
                     <span class="fw-bold text-dark" style="font-size:1.05rem; line-height:1.2;">${name}</span>
                  </div>
-                 <div class="d-flex gap-2 align-items-center mt-2">
+                 ${addressHtml}
+                 <div class="d-flex gap-2 align-items-center mt-2 flex-wrap">
                     <span style="font-size:0.75rem; font-weight:700; color:#fff; background:${rawRating >= 4.5 ? '#06d6a0' : (rawRating >= 4.0 ? '#118ab2' : '#f4a261')}; padding:3px 8px; border-radius:99px;">★ ${rating}</span>
                     <span class="small text-muted" style="font-size:0.75rem;">(${count} reviews)</span>
+                    ${mapsLinkHtml}
                  </div>
                </div>
                <div class="text-end" style="min-width: 90px;">

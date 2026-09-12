@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import Iterable
 from urllib.parse import quote, quote_plus
 
+import os
 import requests
 from django.contrib.auth import login as auth_login
 from django.contrib.auth import logout as auth_logout
@@ -1091,136 +1092,268 @@ def delete_settlement(request, trip_id: int, settlement_id: int):
     return redirect("expense", trip_id=trip_obj.id)
 
 
-@login_required
+def fetch_google_nearby_hotels(city: str) -> list[dict] | None:
+    """
+    Search nearby hotels for a given destination using Google Places API (New)
+    Endpoint: https://places.googleapis.com/v1/places:searchNearby
+    """
+    from django.conf import settings
+    google_key = (
+        os.getenv("GOOGLE_PLACES_API_KEY")
+        or os.getenv("GOOGLE_SEARCH_PLACES_API_KEY")
+        or os.getenv("GOOGLE_API_KEY")
+        or getattr(settings, "GOOGLE_PLACES_API_KEY", "")
+    )
+
+    if not google_key or google_key == "your_google_places_api_key_here":
+        return None
+
+    lat = None
+    lon = None
+
+    # 1. Check recommender dataset coordinates
+    dest_info = RECOMMENDER.get_destination_details(city)
+    if dest_info and dest_info.get("latitude") and dest_info.get("longitude"):
+        lat = dest_info["latitude"]
+        lon = dest_info["longitude"]
+
+    # 2. If coordinates are missing, resolve via Google Places Text Search or Nominatim
+    if lat is None or lon is None:
+        try:
+            text_url = "https://places.googleapis.com/v1/places:searchText"
+            text_headers = {
+                "Content-Type": "application/json",
+                "X-Goog-Api-Key": google_key,
+                "X-Goog-FieldMask": "places.location,places.displayName",
+            }
+            text_resp = requests.post(text_url, headers=text_headers, json={"textQuery": city}, timeout=5)
+            if text_resp.status_code == 200:
+                places_found = text_resp.json().get("places", [])
+                if places_found and "location" in places_found[0]:
+                    lat = places_found[0]["location"].get("latitude")
+                    lon = places_found[0]["location"].get("longitude")
+        except Exception:
+            pass
+
+    if lat is None or lon is None:
+        try:
+            geo_url = f"https://nominatim.openstreetmap.org/search?q={quote_plus(city)}&format=json&limit=1"
+            geo_resp = requests.get(geo_url, headers={"User-Agent": "TripPlanner/1.0"}, timeout=4)
+            if geo_resp.status_code == 200:
+                geo_data = geo_resp.json()
+                if geo_data:
+                    lat = float(geo_data[0]["lat"])
+                    lon = float(geo_data[0]["lon"])
+        except Exception:
+            pass
+
+    if lat is None or lon is None:
+        return None
+
+    # 3. Call Google Places searchNearby API
+    nearby_url = "https://places.googleapis.com/v1/places:searchNearby"
+    headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": google_key,
+        "X-Goog-FieldMask": (
+            "places.id,places.displayName,places.formattedAddress,"
+            "places.rating,places.userRatingCount,places.googleMapsUri,"
+            "places.photos,places.priceLevel,places.location"
+        ),
+    }
+    body = {
+        "includedTypes": ["lodging", "hotel"],
+        "maxResultCount": 10,
+        "locationRestriction": {
+            "circle": {
+                "center": {
+                    "latitude": float(lat),
+                    "longitude": float(lon),
+                },
+                "radius": 15000.0,
+            }
+        },
+    }
+
+    try:
+        resp = requests.post(nearby_url, headers=headers, json=body, timeout=6)
+        if resp.status_code == 200:
+            raw_places = resp.json().get("places", [])
+            hotels = []
+            for p in raw_places:
+                name = p.get("displayName", {}).get("text", "Hotel")
+                rating = p.get("rating", 4.5)
+                count = p.get("userRatingCount", 0)
+                address = p.get("formattedAddress", "")
+                maps_url = p.get("googleMapsUri", f"https://www.google.com/maps/search/?api=1&query={quote_plus(name + ' ' + city)}")
+
+                price_level_enum = p.get("priceLevel", "")
+                if price_level_enum == "PRICE_LEVEL_INEXPENSIVE":
+                    price_str = "₹ 1,500 – ₹ 3,000"
+                elif price_level_enum == "PRICE_LEVEL_MODERATE":
+                    price_str = "₹ 3,500 – ₹ 7,000"
+                elif price_level_enum == "PRICE_LEVEL_EXPENSIVE":
+                    price_str = "₹ 8,000 – ₹ 15,000"
+                elif price_level_enum == "PRICE_LEVEL_VERY_EXPENSIVE":
+                    price_str = "₹ 16,000+"
+                else:
+                    price_str = "₹ 4,500 – ₹ 9,000"
+
+                photos = p.get("photos", [])
+                image_url = None
+                if photos:
+                    photo_name = photos[0].get("name")
+                    if photo_name:
+                        image_url = f"https://places.googleapis.com/v1/{photo_name}/media?maxHeightPx=400&maxWidthPx=600&key={google_key}"
+
+                if not image_url:
+                    safe_id = abs(hash(name)) % 1000
+                    image_url = f"https://picsum.photos/id/{safe_id}/600/400"
+
+                hotels.append({
+                    "name": name,
+                    "reviews": {"rating": rating, "count": count},
+                    "vendor1": "Google Places",
+                    "price1": price_str,
+                    "address": address,
+                    "maps_url": maps_url,
+                    "image_url": image_url,
+                })
+            return hotels if hotels else None
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning("Google Places searchNearby API error: %s", exc)
+
+    return None
+
+
 def hotel_prices_api(request):
+    from datetime import datetime, timedelta
+    from django.conf import settings
+    from django.http import JsonResponse
     import os
     import requests
-    from django.http import JsonResponse
-    from datetime import datetime, timedelta
-    
-    city = request.GET.get("place", "")
-    api_key = os.environ.get("MAKCORPS_API_KEY", "")
 
+    city = request.GET.get("place", "").strip()
     if not city:
         return JsonResponse({"error": "No place provided"}, status=400)
 
-    # If the user hasn't provided a valid API key, return mock data designed in the format of Makcorps
-    if not api_key or api_key == "your_makcorps_api_key_here":
+    # 1. Try Google Places searchNearby API
+    google_hotels = fetch_google_nearby_hotels(city)
+    if google_hotels:
         return JsonResponse({
-            "status": "mock",
-            "message": "Using mock data. Please set MAKCORPS_API_KEY in .env for real results.",
-            "data": [
-                {
-                    "name": f"Grand Plaza {city}",
-                    "reviews": {"rating": 4.9, "count": 2101},
-                    "vendor1": "Booking.com",
-                    "price1": "₹ 18,500",
-                    "vendor2": "Expedia",
-                    "price2": "₹ 19,000"
-                },
-                {
-                    "name": f"The {city} Oasis Resort",
-                    "reviews": {"rating": 4.7, "count": 1450},
-                    "vendor1": "Hotels.com",
-                    "price1": "₹ 14,200",
-                    "vendor2": "Agoda",
-                    "price2": "₹ 14,000"
-                },
-                {
-                    "name": f"{city} Downtown Suites",
-                    "reviews": {"rating": 4.5, "count": 890},
-                    "vendor1": "Expedia",
-                    "price1": "₹ 9,500",
-                    "vendor2": "Hotels.com",
-                    "price2": "₹ 9,600"
-                },
-                {
-                    "name": "Boutique Art Hotel",
-                    "reviews": {"rating": 4.6, "count": 620},
-                    "vendor1": "Booking.com",
-                    "price1": "₹ 8,900"
-                },
-                {
-                    "name": "City View Inn",
-                    "reviews": {"rating": 4.2, "count": 1105},
-                    "vendor1": "Agoda",
-                    "price1": "₹ 6,400",
-                    "vendor2": "Priceline",
-                    "price2": "₹ 6,300"
-                },
-                {
-                    "name": "The Modern Loft",
-                    "reviews": {"rating": 4.3, "count": 450},
-                    "vendor1": "Booking.com",
-                    "price1": "₹ 7,100"
-                },
-                {
-                    "name": f"Sunrise BnB {city}",
-                    "reviews": {"rating": 4.8, "count": 230},
-                    "vendor1": "Expedia",
-                    "price1": "₹ 4,800"
-                },
-                {
-                    "name": "Budget Express",
-                    "reviews": {"rating": 3.7, "count": 840},
-                    "vendor1": "Booking.com",
-                    "price1": "₹ 2,900",
-                    "vendor2": "Agoda",
-                    "price2": "₹ 2,750"
-                },
-                {
-                    "name": "Backpackers Hostel",
-                    "reviews": {"rating": 4.1, "count": 1890},
-                    "vendor1": "Hostelworld",
-                    "price1": "₹ 1,200"
-                }
-            ]
+            "status": "success",
+            "source": "google_places_search_nearby",
+            "data": google_hotels
         })
 
-    # Real implementation using Makcorps
-    # 1. First, we need to map the city to a cityid using mapping API
-    # As per docs, Mapping API fetch: https://api.makcorps.com/mapping?term=CityName
-    try:
-        mapping_url = "https://api.makcorps.com/mapping"
-        map_resp = requests.get(mapping_url, params={"term": city})
-        map_data = map_resp.json()
-        city_id = None
-        for item in map_data:
-            # try to find the actual cityid
-            if item.get("document_id"):
-                city_id = item["document_id"]
-                break
-        
-        if not city_id and map_data:
-            # fallback if mapping structure is slightly different
-            city_id = map_data[0].get("cityid") or map_data[0].get("id") or map_data[0].get("document_id")
+    # 2. Try Makcorps API if configured
+    api_key = os.environ.get("MAKCORPS_API_KEY", "")
+    if api_key and api_key != "your_makcorps_api_key_here":
+        try:
+            mapping_url = "https://api.makcorps.com/mapping"
+            map_resp = requests.get(mapping_url, params={"term": city}, timeout=5)
+            map_data = map_resp.json()
+            city_id = None
+            for item in map_data:
+                if item.get("document_id"):
+                    city_id = item["document_id"]
+                    break
+            if not city_id and map_data:
+                city_id = map_data[0].get("cityid") or map_data[0].get("id") or map_data[0].get("document_id")
 
-        if not city_id:
-            return JsonResponse({"error": "City not found in Makcorps database."}, status=404)
+            if city_id:
+                hotel_url = "https://api.makcorps.com/city"
+                checkin_date = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
+                checkout_date = (datetime.now() + timedelta(days=9)).strftime("%Y-%m-%d")
+                params = {
+                    'cityid': city_id,
+                    'pagination': '0',
+                    'cur': 'INR',
+                    'rooms': '1',
+                    'adults': '2',
+                    'checkin': checkin_date,
+                    'checkout': checkout_date,
+                    'api_key': api_key
+                }
+                hotel_resp = requests.get(hotel_url, params=params, timeout=6)
+                if hotel_resp.status_code == 200:
+                    return JsonResponse({
+                        "status": "success",
+                        "data": hotel_resp.json()
+                    })
+        except Exception as str_exc:
+            pass
 
-        # 2. Call the hotel api with the cityid
-        hotel_url = "https://api.makcorps.com/city"
-        checkin_date = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
-        checkout_date = (datetime.now() + timedelta(days=9)).strftime("%Y-%m-%d")
+    # 3. Fallback mock data designed in the format of Makcorps/Google Places
+    return JsonResponse({
+        "status": "mock",
+        "message": "Using fallback hotel data. Set GOOGLE_PLACES_API_KEY in .env for real-time Google Places results.",
+        "data": [
+            {
+                "name": f"Grand Plaza {city.title()}",
+                "reviews": {"rating": 4.9, "count": 2101},
+                "vendor1": "Booking.com",
+                "price1": "₹ 18,500",
+                "vendor2": "Expedia",
+                "price2": "₹ 19,000"
+            },
+            {
+                "name": f"The {city.title()} Oasis Resort",
+                "reviews": {"rating": 4.7, "count": 1450},
+                "vendor1": "Hotels.com",
+                "price1": "₹ 14,200",
+                "vendor2": "Agoda",
+                "price2": "₹ 14,000"
+            },
+            {
+                "name": f"{city.title()} Downtown Suites",
+                "reviews": {"rating": 4.5, "count": 890},
+                "vendor1": "Expedia",
+                "price1": "₹ 9,500",
+                "vendor2": "Hotels.com",
+                "price2": "₹ 9,600"
+            },
+            {
+                "name": f"Boutique Art Hotel {city.title()}",
+                "reviews": {"rating": 4.6, "count": 620},
+                "vendor1": "Booking.com",
+                "price1": "₹ 8,900"
+            },
+            {
+                "name": f"City View Inn {city.title()}",
+                "reviews": {"rating": 4.2, "count": 1105},
+                "vendor1": "Agoda",
+                "price1": "₹ 6,400",
+                "vendor2": "Priceline",
+                "price2": "₹ 6,300"
+            },
+            {
+                "name": f"The Modern Loft {city.title()}",
+                "reviews": {"rating": 4.3, "count": 450},
+                "vendor1": "Booking.com",
+                "price1": "₹ 7,100"
+            },
+            {
+                "name": f"Sunrise BnB {city.title()}",
+                "reviews": {"rating": 4.8, "count": 230},
+                "vendor1": "Expedia",
+                "price1": "₹ 4,800"
+            },
+            {
+                "name": f"Budget Express {city.title()}",
+                "reviews": {"rating": 3.7, "count": 840},
+                "vendor1": "Booking.com",
+                "price1": "₹ 2,900",
+                "vendor2": "Agoda",
+                "price2": "₹ 2,750"
+            },
+            {
+                "name": f"Backpackers Hostel {city.title()}",
+                "reviews": {"rating": 4.1, "count": 1890},
+                "vendor1": "Hostelworld",
+                "price1": "₹ 1,200"
+            }
+        ]
+    })
 
-        params = {
-            'cityid': city_id,
-            'pagination': '0',
-            'cur': 'INR',
-            'rooms': '1',
-            'adults': '2',
-            'checkin': checkin_date,
-            'checkout': checkout_date,
-            'api_key': api_key
-        }
-
-        hotel_resp = requests.get(hotel_url, params=params)
-        if hotel_resp.status_code == 200:
-            return JsonResponse({
-                "status": "success",
-                "data": hotel_resp.json()
-            })
-        else:
-            return JsonResponse({"error": f"Makcorps API error: {hotel_resp.text}"}, status=hotel_resp.status_code)
-    except Exception as str_exc:
-        return JsonResponse({"error": str(str_exc)}, status=500)

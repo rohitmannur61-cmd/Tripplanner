@@ -224,3 +224,10 @@ EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
 DEFAULT_FROM_EMAIL = os.getenv("DJANGO_DEFAULT_FROM_EMAIL", "noreply@tripplanner.local")
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Google Places API (New) Configuration
+GOOGLE_PLACES_API_KEY = os.getenv(
+    "GOOGLE_PLACES_API_KEY",
+    os.getenv("GOOGLE_SEARCH_PLACES_API_KEY", os.getenv("GOOGLE_API_KEY", ""))
+)
+

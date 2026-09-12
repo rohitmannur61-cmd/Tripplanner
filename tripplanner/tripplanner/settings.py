@@ -120,8 +120,24 @@ def get_sqlite_db_path() -> Path:
 if cloud_db_url:
     try:
         import dj_database_url
+        db_config = dj_database_url.parse(cloud_db_url, conn_max_age=60)
+
+        # Sanitize OPTIONS to remove non-standard URL query parameters (e.g. 'supa') that break psycopg2
+        valid_pg_options = {
+            "sslmode", "sslrootcert", "sslcert", "sslkey", "sslcrl",
+            "sslcompression", "sslpassword", "connect_timeout", "options",
+            "application_name", "keepalives", "keepalives_idle",
+            "keepalives_interval", "keepalives_count", "target_session_attrs",
+            "channel_binding", "gssencmode", "krbsrvname", "service"
+        }
+        raw_options = db_config.get("OPTIONS", {})
+        db_config["OPTIONS"] = {
+            k: v for k, v in raw_options.items()
+            if k.lower() in valid_pg_options
+        }
+
         DATABASES = {
-            "default": dj_database_url.parse(cloud_db_url, conn_max_age=60)
+            "default": db_config
         }
     except Exception:
         DATABASES = {
@@ -130,6 +146,7 @@ if cloud_db_url:
                 "NAME": get_sqlite_db_path(),
             }
         }
+
 elif is_vercel:
     DATABASES = {
         "default": {

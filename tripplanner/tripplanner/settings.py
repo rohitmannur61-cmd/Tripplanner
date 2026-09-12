@@ -97,16 +97,24 @@ def get_sqlite_db_path() -> Path:
     if is_vercel:
         target_path = Path("/tmp/db.sqlite3")
         if not target_path.exists():
+            copied = False
             for source_candidate in (BASE_DIR / "db.sqlite3", BASE_DIR.parent / "db.sqlite3"):
                 if source_candidate.exists():
                     try:
                         import shutil
                         shutil.copyfile(source_candidate, target_path)
+                        copied = True
                         break
                     except Exception:
                         pass
+            if not copied:
+                try:
+                    target_path.touch(exist_ok=True)
+                except Exception:
+                    pass
         return target_path
     return BASE_DIR / "db.sqlite3"
+
 
 
 if cloud_db_url:

@@ -92,6 +92,23 @@ cloud_db_url = (
     or os.getenv("DATABASE_URL")
 )
 
+
+def get_sqlite_db_path() -> Path:
+    if is_vercel:
+        target_path = Path("/tmp/db.sqlite3")
+        if not target_path.exists():
+            for source_candidate in (BASE_DIR / "db.sqlite3", BASE_DIR.parent / "db.sqlite3"):
+                if source_candidate.exists():
+                    try:
+                        import shutil
+                        shutil.copyfile(source_candidate, target_path)
+                        break
+                    except Exception:
+                        pass
+        return target_path
+    return BASE_DIR / "db.sqlite3"
+
+
 if cloud_db_url:
     try:
         import dj_database_url
@@ -102,21 +119,21 @@ if cloud_db_url:
         DATABASES = {
             "default": {
                 "ENGINE": "django.db.backends.sqlite3",
-                "NAME": BASE_DIR / "db.sqlite3",
+                "NAME": get_sqlite_db_path(),
             }
         }
 elif is_vercel:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
+            "NAME": get_sqlite_db_path(),
         }
     }
 elif selected_db == "sqlite":
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
+            "NAME": get_sqlite_db_path(),
         }
     }
 elif (selected_db == "mysql") or os.getenv("MYSQL_DATABASE"):
@@ -146,9 +163,10 @@ else:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
+            "NAME": get_sqlite_db_path(),
         }
     }
+
 
 AUTH_PASSWORD_VALIDATORS = [
     {

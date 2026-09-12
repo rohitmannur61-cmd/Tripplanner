@@ -7,16 +7,16 @@ Hybrid ML system combining:
   3. Popularity-weighted ranking (normalized ratings)
   4. Category-interest matching for contextual reasons
 
-Uses scikit-learn for vectorization + cosine similarity, pandas for
-data handling, and numpy for fast math.  Designed to be imported as a
-singleton and called from Django views.
+Built using standard Python data structures (csv, math, re) to eliminate
+heavy startup overhead and prevent Vercel 500 FUNCTION_INVOCATION_FAILED
+ModuleNotFoundError crashes.
 """
 
+import csv
+import math
 import os
-import numpy as np
-import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+import re
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Weights for the hybrid scoring formula
@@ -26,126 +26,240 @@ W_POPULARITY = 0.20   # Normalized rating (0-1)
 W_PROXIMITY  = 0.15   # Geographic closeness bonus
 W_CATEGORY   = 0.05   # Category overlap bonus
 
-PROXIMITY_THRESHOLD_KM = 500  # Max distance for proximity bonus
+PROXIMITY_THRESHOLD_KM = 500.0  # Max distance for proximity bonus
+
+DEFAULT_STOP_WORDS = {
+    "a", "about", "above", "after", "again", "against", "all", "am", "an", "and",
+    "any", "are", "aren't", "as", "at", "be", "because", "been", "before", "being",
+    "below", "between", "both", "but", "by", "can't", "cannot", "could", "couldn't",
+    "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during",
+    "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't",
+    "have", "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here",
+    "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "i",
+    "i'd", "i'll", "i'm", "i've", "if", "in", "into", "is", "isn't", "it", "it's",
+    "its", "itself", "let's", "me", "more", "most", "mustn't", "my", "myself",
+    "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "ought",
+    "our", "ours", "ourselves", "out", "over", "own", "same", "shan't", "she",
+    "she'd", "she'll", "she's", "should", "shouldn't", "so", "some", "such",
+    "than", "that", "that's", "the", "their", "theirs", "them", "themselves",
+    "then", "there", "there's", "these", "they", "they'd", "they'll", "they're",
+    "they've", "this", "those", "through", "to", "too", "under", "until", "up",
+    "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were",
+    "weren't", "what", "what's", "when", "when's", "where", "where's", "which",
+    "while", "who", "who's", "whom", "why", "why's", "with", "won't", "would",
+    "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours",
+    "yourself", "yourselves"
+}
 
 
 class TravelRecommender:
-    """Production-level hybrid travel recommendation engine."""
+    """Production-level hybrid travel recommendation engine built with pure Python."""
 
     def __init__(self, data_path: str) -> None:
-        self.df = pd.read_csv(data_path)
+        self.destinations: list[dict[str, Any]] = []
+        self.tfidf_vectors: list[dict[str, float]] = []
+        self.idfs: dict[str, float] = {}
+        self.norm_ratings: list[float] = []
+        self.category_sets: list[set[str]] = []
+
+        self._load_data(data_path)
         self._prepare_features()
 
-    # ------------------------------------------------------------------
-    # Feature engineering
-    # ------------------------------------------------------------------
-    def _prepare_features(self) -> None:
-        """Build TF-IDF matrix over a rich combined-text column."""
-        self.df["_text"] = (
-            self.df["description"].fillna("")
-            + " " + self.df["category"].fillna("")
-            + " " + self.df["tags"].fillna("")
-            + " " + self.df["state"].fillna("")
-            + " " + self.df["attractions"].fillna("")
-        ).str.lower()
+    def _load_data(self, data_path: str) -> None:
+        """Load destinations dataset from CSV into list of dicts."""
+        if not os.path.exists(data_path):
+            return
 
-        self.vectorizer = TfidfVectorizer(
-            stop_words="english",
-            max_features=5000,
-            ngram_range=(1, 2),          # unigrams + bigrams
-            sublinear_tf=True,           # dampened term-frequency
-        )
-        self.tfidf_matrix = self.vectorizer.fit_transform(self.df["_text"])
+        with open(data_path, mode="r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                dest = dict(row)
+                try:
+                    dest["rating"] = float(dest.get("rating", 0.0))
+                except (ValueError, TypeError):
+                    dest["rating"] = 0.0
+
+                try:
+                    dest["latitude"] = float(dest.get("latitude", 0.0))
+                except (ValueError, TypeError):
+                    dest["latitude"] = 0.0
+
+                try:
+                    dest["longitude"] = float(dest.get("longitude", 0.0))
+                except (ValueError, TypeError):
+                    dest["longitude"] = 0.0
+
+                try:
+                    dest["avg_budget_per_day"] = int(float(dest.get("avg_budget_per_day", 0)))
+                except (ValueError, TypeError):
+                    dest["avg_budget_per_day"] = 0
+
+                self.destinations.append(dest)
+
+    def _tokenize(self, text: str) -> list[str]:
+        """Tokenize text into unigrams and bigrams, filtering stop words."""
+        words = [
+            w for w in re.findall(r"\b[a-z0-9]+\b", text.lower())
+            if w not in DEFAULT_STOP_WORDS and len(w) > 1
+        ]
+        bigrams = [f"{words[i]} {words[i+1]}" for i in range(len(words) - 1)]
+        return words + bigrams
+
+    def _prepare_features(self) -> None:
+        """Build TF-IDF matrix over rich combined-text features."""
+        n_docs = len(self.destinations)
+        if n_docs == 0:
+            return
+
+        doc_tokens_list: list[list[str]] = []
+        doc_freqs: dict[str, int] = {}
+        doc_tfs: list[dict[str, float]] = []
+
+        for dest in self.destinations:
+            text = (
+                f"{dest.get('description', '')} "
+                f"{dest.get('category', '')} "
+                f"{dest.get('tags', '')} "
+                f"{dest.get('state', '')} "
+                f"{dest.get('attractions', '')}"
+            ).lower()
+
+            tokens = self._tokenize(text)
+            doc_tokens_list.append(tokens)
+
+            tf_counts: dict[str, int] = {}
+            for t in tokens:
+                tf_counts[t] = tf_counts.get(t, 0) + 1
+
+            tf_sublinear: dict[str, float] = {}
+            for t, count in tf_counts.items():
+                tf_sublinear[t] = 1.0 + math.log(count)
+                doc_freqs[t] = doc_freqs.get(t, 0) + 1
+
+            doc_tfs.append(tf_sublinear)
+
+        # Smooth IDF: log((1 + N) / (1 + df)) + 1
+        self.idfs = {
+            term: math.log((1.0 + n_docs) / (1.0 + df)) + 1.0
+            for term, df in doc_freqs.items()
+        }
+
+        # Build normalized TF-IDF vectors
+        self.tfidf_vectors = []
+        for tf in doc_tfs:
+            vec: dict[str, float] = {}
+            for t, val in tf.items():
+                vec[t] = val * self.idfs[t]
+
+            norm = math.sqrt(sum(v * v for v in vec.values()))
+            if norm > 0:
+                vec = {t: v / norm for t, v in vec.items()}
+            self.tfidf_vectors.append(vec)
 
         # Pre-compute normalized ratings (0-1 scale)
-        self.norm_ratings = (self.df["rating"] / 5.0).values
+        self.norm_ratings = [d["rating"] / 5.0 for d in self.destinations]
 
         # Pre-compute category sets for fast overlap scoring
         self.category_sets = [
-            set(c.lower().strip() for c in str(cats).split(","))
-            for cats in self.df["category"]
+            set(c.lower().strip() for c in str(d.get("category", "")).split(",") if c.strip())
+            for d in self.destinations
         ]
 
-    # ------------------------------------------------------------------
-    # Utility: Haversine distance
-    # ------------------------------------------------------------------
+    def _transform_query(self, query: str) -> dict[str, float]:
+        """Convert input query text into a normalized TF-IDF vector."""
+        tokens = self._tokenize(query)
+        tf_counts: dict[str, int] = {}
+        for t in tokens:
+            if t in self.idfs:
+                tf_counts[t] = tf_counts.get(t, 0) + 1
+
+        vec: dict[str, float] = {}
+        for t, count in tf_counts.items():
+            vec[t] = (1.0 + math.log(count)) * self.idfs[t]
+
+        norm = math.sqrt(sum(v * v for v in vec.values()))
+        if norm > 0:
+            vec = {t: v / norm for t, v in vec.items()}
+        return vec
+
+    @staticmethod
+    def _cosine_similarity(vec1: dict[str, float], vec2: dict[str, float]) -> float:
+        """Compute cosine similarity between two normalized TF-IDF dict vectors."""
+        if not vec1 or not vec2:
+            return 0.0
+        if len(vec1) > len(vec2):
+            vec1, vec2 = vec2, vec1
+        return sum(val * vec2[term] for term, val in vec1.items() if term in vec2)
+
     @staticmethod
     def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
         """Return distance in km between two lat/lon points."""
-        R = 6_371  # Earth radius km
-        dlat = np.radians(lat2 - lat1)
-        dlon = np.radians(lon2 - lon1)
+        R = 6371.0  # Earth radius km
+        dlat = math.radians(lat2 - lat1)
+        dlon = math.radians(lon2 - lon1)
         a = (
-            np.sin(dlat / 2) ** 2
-            + np.cos(np.radians(lat1)) * np.cos(np.radians(lat2))
-            * np.sin(dlon / 2) ** 2
+            math.sin(dlat / 2.0) ** 2
+            + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2))
+            * math.sin(dlon / 2.0) ** 2
         )
-        return float(2 * R * np.arcsin(np.sqrt(a)))
+        return 2.0 * R * math.asin(math.sqrt(a))
 
-    # ------------------------------------------------------------------
-    # Category overlap score
-    # ------------------------------------------------------------------
     def _category_overlap(self, idx: int, other_idx: int) -> float:
         a, b = self.category_sets[idx], self.category_sets[other_idx]
         if not a or not b:
             return 0.0
         return len(a & b) / max(len(a | b), 1)
 
-    # ------------------------------------------------------------------
-    # Main recommendation method
-    # ------------------------------------------------------------------
     def get_recommendations(self, place_name: str, top_n: int = 6) -> list[dict]:
-        place_name = place_name.strip().lower()
+        place_name_clean = place_name.strip().lower()
+        n = len(self.destinations)
+        if n == 0:
+            return []
 
         # --- Resolve query to a dataset index ---
-        match = self.df[self.df["place_name"].str.lower() == place_name]
-        if match.empty:
-            # Fuzzy fallback: vectorize the raw query text
-            input_vec = self.vectorizer.transform([place_name])
-            sim_scores = cosine_similarity(input_vec, self.tfidf_matrix).flatten()
-            query_idx = None
+        query_idx = None
+        for idx, dest in enumerate(self.destinations):
+            if str(dest.get("place_name", "")).strip().lower() == place_name_clean:
+                query_idx = idx
+                break
+
+        sim_scores: list[float] = [0.0] * n
+        if query_idx is not None:
+            q_vec = self.tfidf_vectors[query_idx]
+            for i in range(n):
+                sim_scores[i] = self._cosine_similarity(q_vec, self.tfidf_vectors[i])
         else:
-            query_idx = int(match.index[0])
-            sim_scores = cosine_similarity(
-                self.tfidf_matrix[query_idx], self.tfidf_matrix
-            ).flatten()
+            q_vec = self._transform_query(place_name_clean)
+            for i in range(n):
+                sim_scores[i] = self._cosine_similarity(q_vec, self.tfidf_vectors[i])
 
-        n = len(self.df)
-        final_scores = np.zeros(n)
+        final_scores: list[float] = [0.0] * n
+        for i in range(n):
+            final_scores[i] = (sim_scores[i] * W_SIMILARITY) + (self.norm_ratings[i] * W_POPULARITY)
 
-        # 1. Content similarity
-        final_scores += sim_scores * W_SIMILARITY
-
-        # 2. Popularity boost
-        final_scores += self.norm_ratings * W_POPULARITY
-
-        # 3 & 4. Proximity + Category (require a known query index)
         reasons: list[str] = ["Recommended for you"] * n
         if query_idx is not None:
-            q_lat = float(self.df.loc[query_idx, "latitude"])
-            q_lon = float(self.df.loc[query_idx, "longitude"])
-            q_name = str(self.df.loc[query_idx, "place_name"])
+            q_lat = self.destinations[query_idx]["latitude"]
+            q_lon = self.destinations[query_idx]["longitude"]
+            q_name = str(self.destinations[query_idx]["place_name"])
             q_cats = self.category_sets[query_idx]
 
             for i in range(n):
                 if i == query_idx:
                     continue
 
-                # Proximity bonus
                 dist = self.haversine(
                     q_lat, q_lon,
-                    float(self.df.loc[i, "latitude"]),
-                    float(self.df.loc[i, "longitude"]),
+                    self.destinations[i]["latitude"],
+                    self.destinations[i]["longitude"],
                 )
                 if dist < PROXIMITY_THRESHOLD_KM:
                     prox_bonus = 1.0 - (dist / PROXIMITY_THRESHOLD_KM)
                     final_scores[i] += prox_bonus * W_PROXIMITY
 
-                # Category overlap bonus
                 cat_score = self._category_overlap(query_idx, i)
                 final_scores[i] += cat_score * W_CATEGORY
 
-                # Build human-readable reason
                 overlap = q_cats & self.category_sets[i]
                 if dist < 300:
                     reasons[i] = f"Near {q_name}"
@@ -155,94 +269,98 @@ class TravelRecommender:
                 elif sim_scores[i] > 0.25:
                     reasons[i] = f"Similar to {q_name}"
         else:
-            # No exact match — use tag-style reasons
             for i in range(n):
                 if sim_scores[i] > 0.15:
                     reasons[i] = f"Matches your interest in {place_name.title()}"
 
-        # --- Rank & select top-N ---
-        ranked = np.argsort(final_scores)[::-1]
+        # Rank indices by final score descending
+        candidate_indices = list(range(n))
         if query_idx is not None:
-            ranked = ranked[ranked != query_idx]
+            candidate_indices.remove(query_idx)
 
-        top_indices = ranked[:top_n]
+        candidate_indices.sort(key=lambda i: final_scores[i], reverse=True)
+        top_indices = candidate_indices[:top_n]
 
         results: list[dict] = []
         for i in top_indices:
-            row = self.df.iloc[i]
+            row = self.destinations[i]
             results.append({
                 "place_name": row["place_name"],
-                "description": str(row["description"])[:160] + "...",
-                "attractions": [a.strip() for a in str(row["attractions"]).split(",")],
-                "image_query": row["image_query"],
-                "rating": float(row["rating"]),
+                "description": str(row.get("description", ""))[:160] + "...",
+                "attractions": [a.strip() for a in str(row.get("attractions", "")).split(",") if a.strip()],
+                "image_query": row.get("image_query", ""),
+                "rating": float(row.get("rating", 0.0)),
                 "reason": reasons[i],
-                "category": row["category"],
-                "best_season": row["best_season"],
-                "avg_budget": int(row["avg_budget_per_day"]),
+                "category": row.get("category", ""),
+                "best_season": row.get("best_season", ""),
+                "avg_budget": int(row.get("avg_budget_per_day", 0)),
                 "score": round(float(final_scores[i]), 4),
             })
         return results
 
-    # ------------------------------------------------------------------
-    # Category browsing
-    # ------------------------------------------------------------------
     def get_all_categories(self) -> list[str]:
         """Return a sorted list of unique category labels."""
         cats: set[str] = set()
-        for raw in self.df["category"].dropna():
-            for c in str(raw).split(","):
-                c = c.strip().title()
-                if c:
-                    cats.add(c)
+        for dest in self.destinations:
+            raw = dest.get("category", "")
+            if raw:
+                for c in str(raw).split(","):
+                    c = c.strip().title()
+                    if c:
+                        cats.add(c)
         return sorted(cats)
 
     def get_by_category(self, category: str, limit: int = 12) -> list[dict]:
         """Return destinations that match a given category, ranked by rating."""
         cat_lower = category.strip().lower()
-        mask = self.df["category"].fillna("").str.lower().str.contains(cat_lower)
-        filtered = self.df[mask].sort_values("rating", ascending=False).head(limit)
+        matched = [
+            d for d in self.destinations
+            if cat_lower in str(d.get("category", "")).lower()
+        ]
+        matched.sort(key=lambda d: d.get("rating", 0.0), reverse=True)
+        filtered = matched[:limit]
 
         results: list[dict] = []
-        for _, row in filtered.iterrows():
+        for row in filtered:
             results.append({
                 "place_name": row["place_name"],
-                "description": str(row["description"])[:160] + "...",
-                "attractions": [a.strip() for a in str(row["attractions"]).split(",")],
-                "image_query": row["image_query"],
-                "rating": float(row["rating"]),
+                "description": str(row.get("description", ""))[:160] + "...",
+                "attractions": [a.strip() for a in str(row.get("attractions", "")).split(",") if a.strip()],
+                "image_query": row.get("image_query", ""),
+                "rating": float(row.get("rating", 0.0)),
                 "reason": f"Top {category.title()} destination",
-                "category": row["category"],
-                "best_season": row["best_season"],
-                "avg_budget": int(row["avg_budget_per_day"]),
-                "score": float(row["rating"] / 5.0),
+                "category": row.get("category", ""),
+                "best_season": row.get("best_season", ""),
+                "avg_budget": int(row.get("avg_budget_per_day", 0)),
+                "score": float(row.get("rating", 0.0) / 5.0),
             })
         return results
 
-    # ------------------------------------------------------------------
-    # AI Itinerary Generator
-    # ------------------------------------------------------------------
     def generate_itinerary(self, place_name: str, days: int = 3) -> list[dict]:
         """Generate a smart day-by-day trip itinerary from destination data."""
         query = place_name.strip().lower()
-        match = self.df[self.df["place_name"].str.lower() == query]
+        match_dest = None
 
-        if match.empty:
-            # Fuzzy fallback
-            for _, row in self.df.iterrows():
-                if query in str(row["place_name"]).lower() or query in str(row["tags"]).lower():
-                    match = self.df[self.df.index == row.name]
+        for dest in self.destinations:
+            if str(dest.get("place_name", "")).strip().lower() == query:
+                match_dest = dest
+                break
+
+        if match_dest is None:
+            for dest in self.destinations:
+                pname = str(dest.get("place_name", "")).lower()
+                tags = str(dest.get("tags", "")).lower()
+                if query in pname or query in tags:
+                    match_dest = dest
                     break
 
-        if match.empty:
+        if match_dest is None:
             return []
 
-        row = match.iloc[0]
-        attractions = [a.strip() for a in str(row["attractions"]).split(",") if a.strip()]
-        category = str(row.get("category", "")).lower()
-        tags = str(row.get("tags", "")).lower()
+        attractions = [a.strip() for a in str(match_dest.get("attractions", "")).split(",") if a.strip()]
+        category = str(match_dest.get("category", "")).lower()
+        tags = str(match_dest.get("tags", "")).lower()
 
-        # Time-slot templates based on category
         if "beach" in category or "beach" in tags:
             slots = [
                 ("🌅 6:00 AM", "Sunrise walk / beach yoga"),
@@ -303,8 +421,8 @@ class TravelRecommender:
                 "day": d,
                 "title": f"Day {d}" + (
                     " — Arrival & Explore" if d == 1
-                    else f" — Departure" if d == days and days > 1
-                    else f" — Deep Dive"
+                    else " — Departure" if d == days and days > 1
+                    else " — Deep Dive"
                 ),
                 "activities": [],
             }
@@ -321,40 +439,40 @@ class TravelRecommender:
 
         return itinerary
 
-    # ------------------------------------------------------------------
-    # Full destination details (for weather, etc.)
-    # ------------------------------------------------------------------
     def get_destination_details(self, place_name: str) -> dict | None:
         """Return complete details for a single destination."""
         query = place_name.strip().lower()
-        match = self.df[self.df["place_name"].str.lower() == query]
-        if match.empty:
-            for _, row in self.df.iterrows():
-                if query in str(row["place_name"]).lower():
-                    match = self.df[self.df.index == row.name]
+        match_dest = None
+
+        for dest in self.destinations:
+            if str(dest.get("place_name", "")).strip().lower() == query:
+                match_dest = dest
+                break
+
+        if match_dest is None:
+            for dest in self.destinations:
+                if query in str(dest.get("place_name", "")).lower():
+                    match_dest = dest
                     break
-        if match.empty:
+
+        if match_dest is None:
             return None
 
-        row = match.iloc[0]
         return {
-            "place_name": row["place_name"],
-            "latitude": float(row["latitude"]),
-            "longitude": float(row["longitude"]),
-            "category": row["category"],
-            "tags": row["tags"],
-            "best_season": row["best_season"],
-            "avg_budget": int(row["avg_budget_per_day"]),
-            "rating": float(row["rating"]),
-            "description": str(row["description"]),
-            "attractions": [a.strip() for a in str(row["attractions"]).split(",")],
-            "state": row.get("state", ""),
-            "nearby_places": row.get("nearby_places", ""),
+            "place_name": match_dest["place_name"],
+            "latitude": float(match_dest["latitude"]),
+            "longitude": float(match_dest["longitude"]),
+            "category": match_dest.get("category", ""),
+            "tags": match_dest.get("tags", ""),
+            "best_season": match_dest.get("best_season", ""),
+            "avg_budget": int(match_dest.get("avg_budget_per_day", 0)),
+            "rating": float(match_dest.get("rating", 0.0)),
+            "description": str(match_dest.get("description", "")),
+            "attractions": [a.strip() for a in str(match_dest.get("attractions", "")).split(",") if a.strip()],
+            "state": match_dest.get("state", ""),
+            "nearby_places": match_dest.get("nearby_places", ""),
         }
 
-    # ------------------------------------------------------------------
-    # Destination comparison
-    # ------------------------------------------------------------------
     def compare_destinations(self, names: list[str]) -> list[dict]:
         """Return comparison data for multiple destinations."""
         results = []
@@ -363,6 +481,19 @@ class TravelRecommender:
             if details:
                 results.append(details)
         return results
+
+    def get_dataframe(self):
+        """Optional lazy import of pandas DataFrame if needed."""
+        try:
+            import pandas as pd
+            return pd.DataFrame(self.destinations)
+        except ImportError:
+            raise RuntimeError("pandas is not installed in the current environment.")
+
+    @property
+    def df(self):
+        """Backwards compatibility property for DataFrame access."""
+        return self.get_dataframe()
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,46 @@
+# Vercel Web Analytics Implementation
+
+## Summary
+Successfully implemented Vercel Web Analytics for this Django project by adding the analytics script to all base HTML templates.
+
+## Implementation Details
+
+### What was done:
+According to the official Vercel Analytics documentation (https://vercel.com/docs/analytics/quickstart), for HTML/static sites and backend frameworks like Django, the recommended approach is to add the analytics script tag directly to the HTML templates.
+
+Added the following script tag to the `<head>` section of all base HTML templates:
+```html
+<script defer src="/_vercel/insights/script.js"></script>
+```
+
+### Files Modified:
+1. **planner/templates/auth_base.html** - Base template for authentication pages (login, register)
+2. **planner/templates/home.html** - Landing page template
+3. **planner/templates/create_trip.html** - Trip creation page template
+4. **planner/templates/trip.html** - Trip planner page template
+5. **planner/templates/expense.html** - Expense tracking page template
+6. **planner/templates/history.html** - History page template
+
+### Why this approach:
+- Django is a backend Python framework that renders HTML templates server-side
+- The Vercel Analytics documentation specifies that for HTML/static sites (which applies to Django's template rendering), the script tag should be added directly to the HTML
+- The script is loaded with the `defer` attribute to ensure it doesn't block page rendering
+- All standalone templates that represent complete pages have been updated
+- Templates that extend `auth_base.html` (like login and register pages) automatically inherit the analytics script
+
+### How it works:
+1. When deployed to Vercel, the `/_vercel/insights/script.js` route is automatically created by Vercel's infrastructure
+2. The script collects anonymous page view data and sends it to Vercel Analytics
+3. Analytics data can be viewed in the Vercel dashboard under the Analytics section for this project
+
+### Next Steps for Deployment:
+1. Deploy the application to Vercel using `vercel deploy`
+2. Enable Web Analytics in the Vercel dashboard if not already enabled (Analytics → Select Project → Enable)
+3. After deployment and user visits, analytics data will be visible in the Vercel dashboard
+4. Verify analytics are working by checking the browser Network tab for requests to `/_vercel/insights/`
+
+### Notes:
+- No package installation was required since Django uses server-side rendering
+- The analytics script is lightweight and loads asynchronously with `defer`
+- The implementation follows Vercel's official documentation for HTML-based frameworks
+- All page templates now track page views automatically

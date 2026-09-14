@@ -25,7 +25,11 @@ debug_output.txt
 *.zip
 indian-cities-geodata-main.zip
 
+# Node / JS
+node_modules/
+
 # IDEs
 .vscode/
 .idea/
 .DS_Store
+

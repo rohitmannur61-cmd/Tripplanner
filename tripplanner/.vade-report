@@ -1,0 +1,70 @@
+# Vercel Speed Insights Implementation
+
+## Summary
+Successfully implemented Vercel Speed Insights for this Django project using the CDN-based vanilla JavaScript approach.
+
+## What Was Done
+
+### 1. Documentation Research
+- Fetched the latest official documentation from https://vercel.com/docs/speed-insights/quickstart
+- Identified the appropriate installation method for Django projects (CDN-based script injection)
+- Found implementation examples from GitHub to confirm the approach
+
+### 2. Implementation Approach
+Since this is a Django project without npm/Node.js, I used the CDN-based vanilla JavaScript method:
+- Uses ES6 module imports from jsDelivr CDN
+- Imports the `injectSpeedInsights` function from `@vercel/speed-insights@1`
+- Script is injected in the `<head>` section of each HTML template
+
+### 3. Files Modified
+
+Modified 6 HTML templates to include Speed Insights:
+
+1. **planner/templates/auth_base.html** - Base template for authentication pages (login, register)
+2. **planner/templates/home.html** - Landing/home page template
+3. **planner/templates/create_trip.html** - Trip creation page
+4. **planner/templates/expense.html** - Expense tracking page
+5. **planner/templates/history.html** - History page
+6. **planner/templates/trip.html** - Trip planner page
+
+### 4. Code Added
+Each template now includes the following script in the `<head>` section:
+
+```html
+<!-- Vercel Speed Insights -->
+<script type="module">
+  import { injectSpeedInsights } from 'https://cdn.jsdelivr.net/npm/@vercel/speed-insights@1/dist/index.mjs';
+  injectSpeedInsights();
+</script>
+```
+
+## Implementation Details
+
+- **No package.json needed**: Since this is a Django project, we don't need to install npm packages
+- **CDN-based approach**: Uses jsDelivr CDN to load the Speed Insights library
+- **Automatic tracking**: The script will automatically track Core Web Vitals and performance metrics
+- **Production-only**: Speed Insights only tracks data in production/preview environments on Vercel
+- **Template coverage**: All main user-facing templates now include Speed Insights
+- **Child templates**: Templates that extend `auth_base.html` (login.html, register.html) automatically inherit Speed Insights
+
+## Verification
+
+Verified implementation by:
+- Checking that the script was successfully added to all 6 templates
+- Confirming proper HTML syntax and placement (in `<head>` after fonts, before styles)
+- Ensuring consistent indentation and formatting across all templates
+
+## Next Steps
+
+When deployed to Vercel:
+1. Enable Speed Insights in the Vercel Dashboard for this project
+2. Deploy the application to Vercel (production or preview)
+3. Speed Insights will automatically begin collecting performance metrics
+4. View metrics in the Vercel Dashboard under the Speed Insights tab
+
+## Notes
+
+- Speed Insights will NOT track data in local development
+- Data collection only happens on Vercel deployments
+- The CDN approach is ideal for projects without a build system
+- Uses latest version (@1) which will receive automatic updates for patches
